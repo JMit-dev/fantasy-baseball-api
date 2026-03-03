@@ -36,6 +36,7 @@ export function loadExpress(app: Express): void {
    *   get:
    *     summary: Health check endpoint
    *     tags: [Health]
+   *     security: []
    *     responses:
    *       200:
    *         description: Service is healthy

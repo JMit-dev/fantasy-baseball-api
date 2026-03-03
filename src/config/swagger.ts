@@ -20,6 +20,7 @@ const options: swaggerJsdoc.Options = {
         },
       },
     },
+    security: [{ ApiKeyAuth: [] }],
     servers: [
       {
         url: `http://localhost:${env.port}`,
