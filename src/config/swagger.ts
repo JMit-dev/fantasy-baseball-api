@@ -21,12 +21,19 @@ const options: swaggerJsdoc.Options = {
       },
     },
     security: [{ ApiKeyAuth: [] }],
-    servers: [
-      {
-        url: `http://localhost:${env.port}`,
-        description: 'Development server',
-      },
-    ],
+    servers: env.isProduction
+      ? [
+          {
+            url: 'https://fantasy-baseball-api.onrender.com',
+            description: 'Production server',
+          },
+        ]
+      : [
+          {
+            url: `http://localhost:${env.port}`,
+            description: 'Development server',
+          },
+        ],
   },
   apis: [
     './src/features/**/*.routes.ts',
