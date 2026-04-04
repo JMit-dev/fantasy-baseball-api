@@ -90,4 +90,28 @@ router.get(
   }),
 );
 
+/**
+ * @swagger
+ * /api/leagues/{id}:
+ *   delete:
+ *     summary: Delete a league by ID
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ */
+router.delete(
+  '/:id',
+  asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const deletedLeague = await leaguesService.deleteLeagueById(id as string);
+    if (!deletedLeague) {
+      throw new ApiError(404, 'League not found');
+    }
+    sendSuccess(res, deletedLeague);
+  }),
+);
+
 export default router;

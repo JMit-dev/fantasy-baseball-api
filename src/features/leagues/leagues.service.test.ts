@@ -442,4 +442,26 @@ describe('LeaguesService', () => {
       expect(created?.name).toBe('Brand New League');
     });
   });
+
+  describe('deleteLeagueById', () => {
+    it('should delete and return a league by id', async () => {
+      const league = await LeagueModel.findOne({ externalId: 'custom-league' });
+      const deletedLeague = await leaguesService.deleteLeagueById(
+        league!._id.toString(),
+      );
+
+      expect(deletedLeague?.externalId).toBe('custom-league');
+
+      const check = await LeagueModel.findById(league!._id);
+      expect(check).toBeNull();
+    });
+
+    it('should return null for a non-existent id', async () => {
+      const deletedLeague = await leaguesService.deleteLeagueById(
+        '507f1f77bcf86cd799439011',
+      );
+
+      expect(deletedLeague).toBeNull();
+    });
+  });
 });

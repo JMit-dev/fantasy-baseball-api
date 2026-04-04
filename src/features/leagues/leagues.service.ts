@@ -85,6 +85,10 @@ export class LeaguesService {
     const result = await LeagueModel.bulkWrite(operations, { ordered: false });
     return result.upsertedCount + result.modifiedCount;
   }
+
+  async deleteLeagueById(id: string): Promise<League | null> {
+    return LeagueModel.findByIdAndDelete(id).lean();
+  }
 }
 
 export const leaguesService = new LeaguesService();
