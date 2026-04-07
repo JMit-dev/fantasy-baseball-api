@@ -1,6 +1,35 @@
 import mongoose, { Schema } from 'mongoose';
 import type { League } from './leagues.types.js';
 
+function isValidTakenPlayers(value: unknown): boolean {
+  if (!Array.isArray(value)) return false;
+
+  return value.every(
+    (entry) =>
+      Array.isArray(entry) &&
+      entry.length === 4 &&
+      typeof entry[0] === 'string' &&
+      typeof entry[1] === 'string' &&
+      typeof entry[2] === 'string' &&
+      typeof entry[3] === 'number' &&
+      entry[3] >= 0,
+  );
+}
+
+function isValidTeams(value: unknown): boolean {
+  if (!Array.isArray(value)) return false;
+
+  return value.every(
+    (entry) =>
+      Array.isArray(entry) &&
+      entry.length === 3 &&
+      typeof entry[0] === 'string' &&
+      typeof entry[1] === 'string' &&
+      typeof entry[2] === 'number' &&
+      entry[2] >= 0,
+  );
+}
+
 const leagueSchema = new Schema<League>(
   {
     externalId: {
@@ -82,6 +111,23 @@ const leagueSchema = new Schema<League>(
     totalBudget: {
       type: Number,
       min: 1,
+    },
+    taken_players: {
+      type: [[Schema.Types.Mixed]],
+      default: [],
+      validate: {
+        validator: isValidTakenPlayers,
+        message:
+          'taken_players must be [player_id, team_id, position_slot, price] tuples',
+      },
+    },
+    teams: {
+      type: [[Schema.Types.Mixed]],
+      default: [],
+      validate: {
+        validator: isValidTeams,
+        message: 'teams must be [team_id, team_name, current_budget] tuples',
+      },
     },
     isDefault: {
       type: Boolean,

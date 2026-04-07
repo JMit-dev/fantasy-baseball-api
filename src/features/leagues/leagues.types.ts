@@ -58,6 +58,19 @@ export const LeagueFormatSchema = z.enum([
 // Draft type
 export const DraftTypeSchema = z.enum(['auction', 'snake']);
 
+export const TakenPlayerSchema = z.tuple([
+  z.string(),
+  z.string(),
+  z.string(),
+  z.number().min(0),
+]);
+
+export const LeagueTeamSchema = z.tuple([
+  z.string(),
+  z.string(),
+  z.number().min(0),
+]);
+
 // League schema
 export const LeagueSchema = z.object({
   externalId: z.string().min(1), // Unique identifier for upserting
@@ -69,6 +82,8 @@ export const LeagueSchema = z.object({
   pitchingCategories: z.array(PitchingCategorySchema).min(1),
   rosterSlots: RosterSlotsSchema,
   totalBudget: z.number().int().min(1).optional(),
+  taken_players: z.array(TakenPlayerSchema).optional(),
+  teams: z.array(LeagueTeamSchema).optional(),
   isDefault: z.boolean().default(false),
   categoryWeights: z.record(z.string(), z.number()).optional(),
 });
@@ -89,6 +104,8 @@ export type BattingCategory = z.infer<typeof BattingCategorySchema>;
 export type PitchingCategory = z.infer<typeof PitchingCategorySchema>;
 export type LeagueFormat = z.infer<typeof LeagueFormatSchema>;
 export type DraftType = z.infer<typeof DraftTypeSchema>;
+export type TakenPlayer = z.infer<typeof TakenPlayerSchema>;
+export type LeagueTeam = z.infer<typeof LeagueTeamSchema>;
 export type LeagueInput = z.infer<typeof LeagueSchema>;
 export type LeagueFilters = z.infer<typeof LeagueFiltersSchema>;
 
