@@ -307,6 +307,11 @@ describe('LeaguesService', () => {
           BENCH: 0,
         },
         totalBudget: 300, // Changed from 260 to 300
+        taken_players: [
+          ['Player One', 'team-1', 'C-0', 25],
+          ['Player Two', 'team-1', '1B-0', 10],
+        ],
+        teams: [['team-1', 'Alpha', 265]],
         isDefault: true,
       };
 
@@ -316,6 +321,11 @@ describe('LeaguesService', () => {
       expect(updated.description).toBe('Updated description');
       expect(updated.battingCategories).toContain('OBP');
       expect(updated.totalBudget).toBe(300);
+      expect(updated.taken_players).toEqual([
+        ['Player One', 'team-1', 'C-0', 25],
+        ['Player Two', 'team-1', '1B-0', 10],
+      ]);
+      expect(updated.teams).toEqual([['team-1', 'Alpha', 265]]);
     });
   });
 
