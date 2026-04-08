@@ -13,6 +13,10 @@ export class PlayersService {
       league,
       position,
       playerType,
+      team,
+      depthChartStatus,
+      injuryStatus,
+      active,
       search,
       page = 1,
       limit = 50,
@@ -20,25 +24,14 @@ export class PlayersService {
 
     const query: Record<string, unknown> = {};
 
-    // Filter by league
-    if (league && league !== 'MLB') {
-      query.league = league;
-    }
-
-    // Filter by position
-    if (position) {
-      query.positions = position;
-    }
-
-    // Filter by player type
-    if (playerType) {
-      query.playerType = playerType;
-    }
-
-    // Search by name
-    if (search) {
-      query.$text = { $search: search };
-    }
+    if (league && league !== 'MLB') query.league = league;
+    if (position) query.positions = position;
+    if (playerType) query.playerType = playerType;
+    if (team) query.team = team;
+    if (depthChartStatus) query.depthChartStatus = depthChartStatus;
+    if (injuryStatus) query.injuryStatus = injuryStatus;
+    if (active !== undefined) query.active = active;
+    if (search) query.$text = { $search: search };
 
     const skip = (page - 1) * limit;
 
