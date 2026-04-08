@@ -43,46 +43,33 @@ const ESPN_TEAM_MAP: Record<number, string> = {
   30: 'TB',
 };
 
-/** ESPN position abbreviation → our DepthChartStatus rank thresholds are rank-based,
- *  but we still need to know what positions are valid to filter out noise. */
-const VALID_ESPN_POSITIONS = new Set([
-  'C',
-  '1B',
-  '2B',
-  '3B',
-  'SS',
-  'LF',
-  'CF',
-  'RF',
-  'OF',
-  'DH',
-  'SP',
-  'RP',
-  'CL',
-]);
+/**
+ * ESPN position keys (lowercase) to ignore — 'p' is the generic "pitcher"
+ * bucket which duplicates SP/RP entries; we use the specific positions instead.
+ */
+const SKIP_ESPN_POSITIONS = new Set(['p']);
 
 interface ESPNAthlete {
   id: string;
   displayName: string;
 }
 
-interface ESPNDepthChartEntry {
-  rank: number;
-  athlete: ESPNAthlete;
+interface ESPNPositionEntry {
+  position: { name: string; abbreviation: string };
+  /** Athletes ordered by depth chart rank (index 0 = starter). */
+  athletes: ESPNAthlete[];
 }
 
-interface ESPNPosition {
+interface ESPNDepthChartGroup {
+  id: string;
   name: string;
-  abbreviation: string;
-}
-
-interface ESPNDepthChart {
-  position: ESPNPosition;
-  athletes: ESPNDepthChartEntry[];
+  /** Keys are lowercase position abbreviations: 'c', '1b', 'sp', 'rp', 'cl', etc. */
+  positions: Record<string, ESPNPositionEntry>;
 }
 
 interface ESPNDepthChartResponse {
-  depthCharts: ESPNDepthChart[];
+  /** ESPN returns a single-element array named "depthchart" (lowercase). */
+  depthchart: ESPNDepthChartGroup[];
 }
 
 async function fetchJSON<T>(url: string): Promise<T> {
@@ -107,27 +94,28 @@ async function fetchTeamDepthChart(
   const data = await fetchJSON<ESPNDepthChartResponse>(url);
 
   const updates: DepthChartUpdate[] = [];
-  // Track players already seen so we don't overwrite a higher-priority position entry
+  // Track players already seen so we record only their primary (first) position
   const seen = new Set<string>();
 
-  for (const chart of data.depthCharts) {
-    const posAbbr = chart.position.abbreviation.toUpperCase();
+  const positionsMap = data.depthchart[0]?.positions ?? {};
 
-    if (!VALID_ESPN_POSITIONS.has(posAbbr)) continue;
+  for (const [posKey, posEntry] of Object.entries(positionsMap)) {
+    // Skip generic 'p' (pitcher) bucket — it duplicates sp/rp entries
+    if (SKIP_ESPN_POSITIONS.has(posKey)) continue;
 
-    for (const entry of chart.athletes) {
-      const name = entry.athlete.displayName;
-
-      // Only record the first (highest-priority) position entry per player
-      if (seen.has(name)) continue;
+    posEntry.athletes.forEach((athlete, index) => {
+      const name = athlete.displayName;
+      if (seen.has(name)) return;
       seen.add(name);
 
+      // Array index is 0-based; rank is 1-based
+      const rank = index + 1;
       updates.push({
         name,
-        depthChartStatus: rankToDepthChartStatus(entry.rank),
-        depthChartOrder: entry.rank,
+        depthChartStatus: rankToDepthChartStatus(rank),
+        depthChartOrder: rank,
       });
-    }
+    });
   }
 
   return { team: mlbAbbr, updates };
