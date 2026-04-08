@@ -6,6 +6,7 @@ import { asyncHandler } from '@/shared/middlewares/async-handler.js';
 import { ApiError } from '@/shared/utils/api-error.js';
 import { PlayerFiltersSchema } from './players.types.js';
 import { triggerPlayerSyncNow } from '@/jobs/sync-players.job.js';
+import { triggerDepthChartSyncNow } from '@/jobs/sync-depth-charts.job.js';
 
 const router = Router();
 
@@ -62,6 +63,20 @@ router.post(
   asyncHandler(async (_req: Request, res: Response) => {
     await triggerPlayerSyncNow();
     sendSuccess(res, { message: 'Player sync triggered successfully' });
+  }),
+);
+
+/**
+ * @swagger
+ * /api/players/sync-depth-charts:
+ *   post:
+ *     summary: Manually trigger depth chart sync from ESPN API
+ */
+router.post(
+  '/sync-depth-charts',
+  asyncHandler(async (_req: Request, res: Response) => {
+    await triggerDepthChartSyncNow();
+    sendSuccess(res, { message: 'Depth chart sync triggered successfully' });
   }),
 );
 

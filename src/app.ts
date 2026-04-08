@@ -7,6 +7,10 @@ import {
   definePlayerSyncJob,
   schedulePlayerSync,
 } from './jobs/sync-players.job.js';
+import {
+  defineDepthChartSyncJob,
+  scheduleDepthChartSync,
+} from './jobs/sync-depth-charts.job.js';
 import { seedDefaultLeagues } from './features/leagues/utils/leagues.seed.js';
 
 async function start() {
@@ -17,6 +21,8 @@ async function start() {
   await startAgenda();
   definePlayerSyncJob();
   await schedulePlayerSync();
+  defineDepthChartSyncJob();
+  await scheduleDepthChartSync();
 
   loadExpress(app);
 
