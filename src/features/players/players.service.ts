@@ -1,5 +1,11 @@
 import { PlayerModel } from './players.model.js';
-import type { Player, PlayerFilters } from './players.types.js';
+import type { DepthChartStatus, Player, PlayerFilters } from './players.types.js';
+
+export interface DepthChartUpdate {
+  name: string;
+  depthChartStatus: DepthChartStatus;
+  depthChartOrder: number;
+}
 
 export class PlayersService {
   async getPlayers(filters: PlayerFilters = {}) {
@@ -93,6 +99,34 @@ export class PlayersService {
     players: Omit<Player, '_id' | 'createdAt' | 'updatedAt'>[],
   ): Promise<void> {
     await PlayerModel.insertMany(players);
+  }
+
+  async syncTeamDepthCharts(
+    team: string,
+    updates: DepthChartUpdate[],
+  ): Promise<number> {
+    // Clear existing depth chart data for all players on this team
+    await PlayerModel.updateMany(
+      { team },
+      { $unset: { depthChartStatus: '', depthChartOrder: '' } },
+    );
+
+    if (updates.length === 0) return 0;
+
+    const operations = updates.map((u) => ({
+      updateOne: {
+        filter: { name: u.name, team },
+        update: {
+          $set: {
+            depthChartStatus: u.depthChartStatus,
+            depthChartOrder: u.depthChartOrder,
+          },
+        },
+      },
+    }));
+
+    const result = await PlayerModel.bulkWrite(operations, { ordered: false });
+    return result.modifiedCount;
   }
 }
 
