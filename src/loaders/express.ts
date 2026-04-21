@@ -6,6 +6,7 @@ import { swaggerSpec } from '../config/swagger.js';
 import playersRoutes from '../features/players/players.routes.js';
 import leaguesRoutes from '../features/leagues/leagues.routes.js';
 import apiKeysRoutes from '../features/api-keys/api-keys.routes.js';
+import valuationsRoutes from '../features/valuations/valuations.routes.js';
 import { createRequireApiKey } from '../shared/middlewares/require-api-key.js';
 import { apiKeysService } from '../features/api-keys/api-keys.service.js';
 import { env } from '../config/env.js';
@@ -59,6 +60,7 @@ export function loadExpress(app: Express): void {
   app.use('/api/api-keys', apiKeyMiddleware, apiKeysRoutes);
   app.use('/api/players', apiKeyMiddleware, playersRoutes);
   app.use('/api/leagues', apiKeyMiddleware, leaguesRoutes);
+  app.use('/api/valuations', apiKeyMiddleware, valuationsRoutes);
 
   app.use(errorHandler);
 }
