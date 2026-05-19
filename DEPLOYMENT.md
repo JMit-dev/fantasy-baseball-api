@@ -21,7 +21,7 @@ This project uses a simple licensing model:
 ## Protected Routes
 
 - `/api/players/*`
-- `/api/leagues/*`
+- `/api/valuations`
 - `/api/api-keys/me`
 
 Public route:
@@ -75,6 +75,9 @@ Notes:
 - Raw keys are never stored in MongoDB; only `keyHash` is stored.
 
 ## Draft Kit Integration Example
+
+Valuations are stateless. Draft Kit must send the current league state in the
+request body to `POST /api/valuations`. The API does not persist league records.
 
 ### 1) Store key in Draft Kit environment
 

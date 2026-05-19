@@ -4,7 +4,6 @@ import swaggerUi from 'swagger-ui-express';
 import { errorHandler } from '../shared/middlewares/error-handler.js';
 import { swaggerSpec } from '../config/swagger.js';
 import playersRoutes from '../features/players/players.routes.js';
-import leaguesRoutes from '../features/leagues/leagues.routes.js';
 import apiKeysRoutes from '../features/api-keys/api-keys.routes.js';
 import valuationsRoutes from '../features/valuations/valuations.routes.js';
 import apiKeyRegisterRoute from '../features/api-keys/api-keys.register.routes.js';
@@ -108,12 +107,6 @@ export function loadExpress(app: Express): void {
     apiKeyMiddleware,
     perKeyRateLimitMiddleware,
     playersRoutes,
-  );
-  app.use(
-    '/api/leagues',
-    apiKeyMiddleware,
-    perKeyRateLimitMiddleware,
-    leaguesRoutes,
   );
   app.use(
     '/api/valuations',
