@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { LeagueSchema } from '../leagues/leagues.types.js';
 
 export const ValuationQuerySchema = z.object({
   teamId: z.string().optional(),
@@ -8,7 +9,19 @@ export const ValuationQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(100).default(50),
 });
 
+export const ValuationLeagueSchema = LeagueSchema.omit({
+  externalId: true,
+  isDefault: true,
+});
+
+export const ValuationRequestSchema = z.object({
+  league: ValuationLeagueSchema,
+  query: ValuationQuerySchema.optional().default({}),
+});
+
 export type ValuationQuery = z.infer<typeof ValuationQuerySchema>;
+export type ValuationLeague = z.infer<typeof ValuationLeagueSchema>;
+export type ValuationRequest = z.infer<typeof ValuationRequestSchema>;
 
 export interface ValuationMultipliers {
   depthChart: number;

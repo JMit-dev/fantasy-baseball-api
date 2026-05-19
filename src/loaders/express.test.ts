@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadExpress } from './express.js';
 import { apiKeysService } from '@/features/api-keys/api-keys.service.js';
 import { playersService } from '@/features/players/players.service.js';
+import { valuationsService } from '@/features/valuations/valuations.service.js';
 import { env } from '@/config/env.js';
 
 type StartedApp = {
@@ -202,6 +203,64 @@ describe('loadExpress', () => {
 
     expect(first.status).toBe(200);
     expect(second.status).toBe(200);
+  });
+
+  it('accepts valuation requests with league data in the request body', async () => {
+    vi.spyOn(apiKeysService, 'authenticateApiKey').mockResolvedValue({
+      keyId: 'key-1',
+      serviceName: 'draft-kit',
+      status: 'active',
+      allowedIPs: [],
+      effectiveRateLimitPerMinute: 10,
+    });
+    vi.spyOn(
+      valuationsService,
+      'calculateValuationsForLeague',
+    ).mockResolvedValue({
+      leagueName: 'Payload League',
+      teamId: undefined,
+      valuations: [],
+      pagination: { page: 1, limit: 25, total: 0 },
+    });
+
+    const started = await startApp();
+    server = started.server;
+
+    const response = await fetch(`${started.baseUrl}/api/valuations`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': 'key-1',
+      },
+      body: JSON.stringify({
+        league: {
+          name: 'Payload League',
+          format: 'roto',
+          draftType: 'auction',
+          battingCategories: ['HR'],
+          pitchingCategories: ['K'],
+          rosterSlots: {
+            C: 1,
+            '1B': 1,
+            '2B': 1,
+            '3B': 1,
+            SS: 1,
+            OF: 3,
+            DH: 0,
+            SP: 5,
+            RP: 2,
+            UTIL: 0,
+            BENCH: 0,
+          },
+        },
+        query: { page: 1, limit: 25 },
+      }),
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(valuationsService.calculateValuationsForLeague).toHaveBeenCalled();
+    expect(body.data.leagueName).toBe('Payload League');
   });
 
   it('keeps the global IP limiter active', async () => {

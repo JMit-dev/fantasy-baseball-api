@@ -37,6 +37,7 @@ const options: swaggerJsdoc.Options = {
   },
   apis: [
     './src/features/**/*.routes.ts',
+    '!./src/features/leagues/**/*.routes.ts',
     './src/features/**/*.types.ts',
     './src/loaders/express.ts',
   ],

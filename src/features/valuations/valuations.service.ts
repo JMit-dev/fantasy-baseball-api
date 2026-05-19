@@ -3,6 +3,7 @@ import { LeagueModel } from '../leagues/leagues.model.js';
 import type { Player } from '../players/players.types.js';
 import type { League } from '../leagues/leagues.types.js';
 import type {
+  ValuationLeague,
   ValuationQuery,
   PlayerValuation,
   ValuationMultipliers,
@@ -44,6 +45,23 @@ export class ValuationsService {
     const league = await LeagueModel.findById(leagueId).lean();
     if (!league) throw new ApiError(404, 'League not found');
 
+    return {
+      leagueId: String(league._id),
+      ...(await this.buildValuationsForLeague(league, query)),
+    };
+  }
+
+  async calculateValuationsForLeague(
+    league: ValuationLeague,
+    query: ValuationQuery,
+  ) {
+    return this.buildValuationsForLeague(league as League, query);
+  }
+
+  private async buildValuationsForLeague(
+    league: League,
+    query: ValuationQuery,
+  ) {
     const allPlayers = (await PlayerModel.find({
       active: true,
     }).lean()) as unknown as Player[];
@@ -125,7 +143,6 @@ export class ValuationsService {
     const start = (query.page - 1) * query.limit;
 
     return {
-      leagueId: String(league._id),
       leagueName: league.name,
       teamId: query.teamId,
       valuations: all.slice(start, start + query.limit),
