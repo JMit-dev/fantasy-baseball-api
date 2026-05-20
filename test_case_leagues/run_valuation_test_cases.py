@@ -7,7 +7,7 @@ import sys
 import urllib.request
 
 API_KEY = "cse416-team-white_irDXd_L2EmZnKDLOFdQi9cZ7bRKLDgYTZBcy_JAcePs"
-BASE_URL = "https://fantasy-baseball-api.onrender.com/api/valuations"
+BASE_URL = "http://localhost:3001/api/valuations"
 TEST_CASES = [
     ("test_case_1", "NEW_before_draft_starts.json"),
     ("test_case_2", "after_10_players_taken.json"),
