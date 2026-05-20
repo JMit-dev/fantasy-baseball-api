@@ -119,6 +119,121 @@ describe('ValuationsService.calculateValuations', () => {
     expect(result.pagination.total).toBe(0);
   });
 
+  it('resolves drafted player names in stateless league payloads', async () => {
+    await PlayerModel.insertMany([
+      hitter({ externalId: 'h-judge', name: 'Aaron Judge', positions: ['OF'] }),
+      hitter({
+        externalId: 'h-catcher',
+        name: 'Test Catcher',
+        positions: ['C'],
+      }),
+      hitter({
+        externalId: 'h-other-of',
+        name: 'Other Outfielder',
+        positions: ['OF'],
+      }),
+      hitter({
+        externalId: 'h-third-of',
+        name: 'Third Outfielder',
+        positions: ['OF'],
+      }),
+    ]);
+
+    const aaronJudgeId = (await PlayerModel.findOne({ name: 'Aaron Judge' })
+      .select('_id')
+      .lean())!._id.toString();
+
+    const draftedByName = await valuationsService.calculateValuationsForLeague(
+      {
+        ...baseLeague,
+        name: 'Payload League',
+        rosterSlots: {
+          C: 1,
+          '1B': 0,
+          '2B': 0,
+          '3B': 0,
+          SS: 0,
+          OF: 1,
+          DH: 0,
+          SP: 0,
+          RP: 0,
+          UTIL: 0,
+          BENCH: 0,
+        },
+        taken_players: [['Aaron Judge', 'team-1', 'OF-0', 10]],
+      },
+      { page: 1, limit: 50 },
+    );
+
+    const draftedById = await valuationsService.calculateValuationsForLeague(
+      {
+        ...baseLeague,
+        name: 'Payload League',
+        rosterSlots: {
+          C: 1,
+          '1B': 0,
+          '2B': 0,
+          '3B': 0,
+          SS: 0,
+          OF: 1,
+          DH: 0,
+          SP: 0,
+          RP: 0,
+          UTIL: 0,
+          BENCH: 0,
+        },
+        taken_players: [[aaronJudgeId, 'team-1', 'OF-0', 10]],
+      },
+      { page: 1, limit: 50 },
+    );
+
+    const draftedJudge = draftedByName.valuations.find(
+      (valuation) => valuation.name === 'Aaron Judge',
+    )!;
+    const draftedJudgeById = draftedById.valuations.find(
+      (valuation) => valuation.name === 'Aaron Judge',
+    )!;
+    const draftedOtherOutfielder = draftedByName.valuations.find(
+      (valuation) => valuation.name === 'Other Outfielder',
+    )!;
+    const draftedOtherOutfielderById = draftedById.valuations.find(
+      (valuation) => valuation.name === 'Other Outfielder',
+    )!;
+
+    expect(draftedJudge.draftable).toBe(false);
+    expect(draftedJudge.draftableReason).toBe(
+      'Player has already been drafted',
+    );
+    expect(draftedJudgeById.draftable).toBe(false);
+    expect(draftedOtherOutfielder.multipliers.scarcity).toBe(
+      draftedOtherOutfielderById.multipliers.scarcity,
+    );
+    expect(draftedOtherOutfielder.dollarValue).toBe(
+      draftedOtherOutfielderById.dollarValue,
+    );
+  });
+
+  it('rejects ambiguous drafted player names in stateless league payloads', async () => {
+    await PlayerModel.insertMany([
+      hitter({ externalId: 'h-ramirez-1', name: 'Jose Ramirez' }),
+      hitter({ externalId: 'h-ramirez-2', name: 'José Ramírez' }),
+    ]);
+
+    await expect(
+      valuationsService.calculateValuationsForLeague(
+        {
+          ...baseLeague,
+          name: 'Payload League',
+          taken_players: [['Jose Ramirez', 'team-1', 'OF-0', 10]],
+        },
+        { page: 1, limit: 50 },
+      ),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: expect.stringContaining('Ambiguous player references'),
+    });
+  });
+
   it('returns all active players sorted by dollarValue descending', async () => {
     const [league] = await LeagueModel.insertMany([baseLeague]);
     await PlayerModel.insertMany([

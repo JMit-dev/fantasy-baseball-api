@@ -1,7 +1,11 @@
 import { PlayerModel } from '../players/players.model.js';
 import { LeagueModel } from '../leagues/leagues.model.js';
 import type { Player } from '../players/players.types.js';
-import type { League } from '../leagues/leagues.types.js';
+import type {
+  DraftPick,
+  League,
+  TakenPlayer,
+} from '../leagues/leagues.types.js';
 import type {
   ValuationLeague,
   ValuationQuery,
@@ -40,6 +44,15 @@ type ScoredPlayer = {
 // Positions that can fill a UTIL slot (all hitter positions)
 const UTIL_ELIGIBLE = new Set(['C', '1B', '2B', '3B', 'SS', 'OF', 'DH']);
 
+function normalizePlayerReference(value: string): string {
+  return value
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
 export class ValuationsService {
   async calculateValuations(leagueId: string, query: ValuationQuery) {
     const league = await LeagueModel.findById(leagueId).lean();
@@ -55,7 +68,94 @@ export class ValuationsService {
     league: ValuationLeague,
     query: ValuationQuery,
   ) {
-    return this.buildValuationsForLeague(league as League, query);
+    const normalizedLeague = await this.normalizeLeaguePlayerReferences(
+      league as League,
+    );
+    return this.buildValuationsForLeague(normalizedLeague, query);
+  }
+
+  private async normalizeLeaguePlayerReferences(
+    league: League,
+  ): Promise<League> {
+    const takenPlayers = league.taken_players ?? [];
+    const draftPicks = league.draft_picks ?? [];
+
+    if (takenPlayers.length === 0 && draftPicks.length === 0) {
+      return league;
+    }
+
+    const allPlayers = (await PlayerModel.find({})
+      .select('_id name')
+      .lean()) as Array<Pick<Player, '_id' | 'name'>>;
+
+    const validIds = new Set(allPlayers.map((player) => String(player._id)));
+    const playersByNormalizedName = new Map<string, string[]>();
+
+    for (const player of allPlayers) {
+      const normalizedName = normalizePlayerReference(player.name);
+      const matches = playersByNormalizedName.get(normalizedName) ?? [];
+      matches.push(String(player._id));
+      playersByNormalizedName.set(normalizedName, matches);
+    }
+
+    const unresolved = new Set<string>();
+    const ambiguous = new Set<string>();
+
+    const resolvePlayerRef = (value: string): string => {
+      if (validIds.has(value)) return value;
+
+      const normalizedName = normalizePlayerReference(value);
+      const matches = playersByNormalizedName.get(normalizedName) ?? [];
+
+      if (matches.length === 1) return matches[0];
+      if (matches.length === 0) unresolved.add(value);
+      else ambiguous.add(value);
+
+      return value;
+    };
+
+    const normalizedTakenPlayers = takenPlayers.map(
+      ([playerRef, teamId, slot, price, contract]) =>
+        [
+          resolvePlayerRef(String(playerRef)),
+          teamId,
+          slot,
+          price,
+          contract,
+        ] as TakenPlayer,
+    );
+
+    const normalizedDraftPicks = draftPicks.map(
+      ([pickNumber, nominatingTeamId, winningTeamId, playerRef, salary]) =>
+        [
+          pickNumber,
+          nominatingTeamId,
+          winningTeamId,
+          resolvePlayerRef(String(playerRef)),
+          salary,
+        ] as DraftPick,
+    );
+
+    if (unresolved.size > 0 || ambiguous.size > 0) {
+      const parts: string[] = [];
+      if (unresolved.size > 0) {
+        parts.push(
+          `Unknown player references: ${Array.from(unresolved).sort().join(', ')}`,
+        );
+      }
+      if (ambiguous.size > 0) {
+        parts.push(
+          `Ambiguous player references: ${Array.from(ambiguous).sort().join(', ')}`,
+        );
+      }
+      throw new ApiError(400, parts.join('. '));
+    }
+
+    return {
+      ...league,
+      taken_players: normalizedTakenPlayers,
+      draft_picks: normalizedDraftPicks,
+    };
   }
 
   private async buildValuationsForLeague(
