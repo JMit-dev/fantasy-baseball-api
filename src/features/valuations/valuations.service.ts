@@ -41,8 +41,13 @@ type ScoredPlayer = {
   rawZSum: number;
 };
 
-// Positions that can fill a UTIL slot (all hitter positions)
-const UTIL_ELIGIBLE = new Set(['C', '1B', '2B', '3B', 'SS', 'OF', 'DH']);
+type ScoredPlayerWithRoleValue = ScoredPlayer & {
+  roleValue?: number;
+};
+
+function slotBase(slot: string): string {
+  return slot.split('-')[0] ?? slot;
+}
 
 function normalizePlayerReference(value: string): string {
   return value
@@ -196,7 +201,7 @@ export class ValuationsService {
     const numTeams = (league.teams ?? []).length || 10;
     const totalBudget = league.totalBudget ?? 260;
     const hitterBudget = totalBudget * numTeams * 0.67;
-    const pitcherBudget = totalBudget * numTeams * 0.33;
+    const pitcherBudget = totalBudget * numTeams;
 
     const takenPlayerIds = new Set(
       (league.taken_players ?? []).map(([pid]) => String(pid)),
@@ -217,6 +222,11 @@ export class ValuationsService {
       scarcityMap,
       query.teamId,
     );
+    const pitcherReplacementValues = this.buildPitcherReplacementValues(
+      pitcherScored,
+      league,
+      numTeams,
+    );
     const pitcherValuations = this.scoreToValuations(
       pitcherScored,
       pitcherBudget,
@@ -224,6 +234,7 @@ export class ValuationsService {
       takenPlayerIds,
       scarcityMap,
       query.teamId,
+      pitcherReplacementValues,
     );
 
     let all = [...hitterValuations, ...pitcherValuations].sort(
@@ -357,16 +368,21 @@ export class ValuationsService {
     takenPlayerIds: Set<string>,
     scarcityMap: Map<string, number>,
     teamId?: string,
+    overridePositiveScores?: Map<string, number>,
   ): PlayerValuation[] {
+    const getPositiveScore = ({ player, rawZSum }: ScoredPlayer) =>
+      Math.max(0, overridePositiveScores?.get(String(player._id)) ?? rawZSum);
+
     const totalPositive = scored.reduce(
-      (acc, { rawZSum }) => acc + Math.max(0, rawZSum),
+      (acc, scoredPlayer) => acc + getPositiveScore(scoredPlayer),
       0,
     );
 
     return scored.map(({ player, avgStats, rawZSum }) => {
+      const positiveScore = getPositiveScore({ player, avgStats, rawZSum });
       const baseValue =
-        totalPositive > 0 && rawZSum > 0
-          ? parseFloat(((rawZSum / totalPositive) * budget).toFixed(2))
+        totalPositive > 0 && positiveScore > 0
+          ? parseFloat(((positiveScore / totalPositive) * budget).toFixed(2))
           : 1;
 
       // Scarcity: use the highest scarcity factor among the player's positions
@@ -406,56 +422,109 @@ export class ValuationsService {
     });
   }
 
-  // Builds a per-position scarcity multiplier normalised around 1.0.
-  // Positions where (slots needed / players available) is above average get > 1.0.
+  private buildPitcherReplacementValues(
+    scored: ScoredPlayer[],
+    league: League,
+    numTeams: number,
+  ): Map<string, number> {
+    const starterSlots = Math.max(0, (league.rosterSlots.SP ?? 0) * numTeams);
+    const relieverSlots = Math.max(0, (league.rosterSlots.RP ?? 0) * numTeams);
+
+    const spOnly = scored.filter(
+      ({ player }) =>
+        player.positions.includes('SP') && !player.positions.includes('RP'),
+    );
+    const rpEligible = scored.filter(({ player }) =>
+      player.positions.includes('RP'),
+    );
+    const dualEligible = scored.filter(
+      ({ player }) =>
+        player.positions.includes('SP') && player.positions.includes('RP'),
+    );
+
+    const starterMap = this.buildRoleReplacementValues(
+      [...spOnly, ...dualEligible],
+      starterSlots,
+    );
+    const relieverMap = this.buildRoleReplacementValues(
+      rpEligible,
+      relieverSlots,
+    );
+
+    const resolved = new Map<string, number>();
+    for (const scoredPlayer of scored) {
+      const id = String(scoredPlayer.player._id);
+      const starterValue = starterMap.get(id) ?? Number.NEGATIVE_INFINITY;
+      const relieverValue = relieverMap.get(id) ?? Number.NEGATIVE_INFINITY;
+
+      if (scoredPlayer.player.positions.includes('RP')) {
+        resolved.set(id, Math.max(0, starterValue, relieverValue));
+      } else {
+        resolved.set(id, Math.max(0, starterValue));
+      }
+    }
+
+    return resolved;
+  }
+
+  private buildRoleReplacementValues(
+    scored: ScoredPlayer[],
+    draftableSlots: number,
+  ): Map<string, number> {
+    const sorted = [...scored].sort((a, b) => b.rawZSum - a.rawZSum);
+    const replacementIndex = Math.min(
+      Math.max(draftableSlots - 1, 0),
+      Math.max(sorted.length - 1, 0),
+    );
+    const replacementRawZ =
+      draftableSlots > 0 && sorted.length > 0
+        ? (sorted[replacementIndex]?.rawZSum ?? 0)
+        : 0;
+
+    return new Map(
+      scored.map(({ player, rawZSum }) => [
+        String(player._id),
+        Math.max(0, rawZSum - replacementRawZ),
+      ]),
+    );
+  }
+
+  // Builds a per-position scarcity multiplier from league slot saturation.
+  // Positions with more filled slots become more scarce.
   private buildScarcityMap(
     players: Player[],
     league: League,
     numTeams: number,
-    takenPlayerIds: Set<string>,
+    _takenPlayerIds: Set<string>,
   ): Map<string, number> {
     const slots = league.rosterSlots as Record<string, number>;
 
-    // Pool size: undrafted active players at each position
-    const poolSize: Record<string, number> = {};
-    for (const player of players) {
-      if (takenPlayerIds.has(String(player._id))) continue;
-
-      for (const pos of player.positions) {
-        poolSize[pos] = (poolSize[pos] ?? 0) + 1;
-      }
-      // Count UTIL-eligible hitters toward the UTIL pool
-      if (
-        player.playerType === 'hitter' &&
-        player.positions.some((p) => UTIL_ELIGIBLE.has(p))
-      ) {
-        poolSize['UTIL'] = (poolSize['UTIL'] ?? 0) + 1;
-      }
-    }
-
-    // Demand: roster slots needed across all teams
-    const demand: Record<string, number> = {};
-    for (const [pos, count] of Object.entries(slots)) {
-      if (count > 0) demand[pos] = count * numTeams;
-    }
-
-    // Raw ratio = demand / supply for each position
-    const positions = Object.keys(demand);
-    const ratios: Record<string, number> = {};
-    for (const pos of positions) {
-      const supply = poolSize[pos] ?? 1;
-      ratios[pos] = (demand[pos] ?? 0) / supply;
-    }
-
-    // Normalise so the mean ratio = 1.0
-    const values = Object.values(ratios);
-    const mean = values.reduce((a, b) => a + b, 0) / (values.length || 1);
-
     const map = new Map<string, number>();
+    const occupiedSlots: Record<string, number> = {};
+
+    for (const [, , slot] of league.taken_players ?? []) {
+      const base = slotBase(slot);
+      occupiedSlots[base] = (occupiedSlots[base] ?? 0) + 1;
+    }
+
+    const positions = new Set<string>();
+    for (const player of players) {
+      for (const pos of player.positions) {
+        positions.add(pos);
+      }
+    }
+
     for (const pos of positions) {
-      // Clamp between 0.7 and 1.5 to avoid extreme swings
-      const normalised = mean > 0 ? ratios[pos] / mean : 1.0;
-      map.set(pos, Math.min(1.5, Math.max(0.7, normalised)));
+      const totalSlots = (slots[pos] ?? 0) * numTeams;
+      if (totalSlots <= 0) {
+        map.set(pos, 1.0);
+        continue;
+      }
+
+      const filledSlots = Math.min(occupiedSlots[pos] ?? 0, totalSlots);
+      const openRatio = Math.max(0, (totalSlots - filledSlots) / totalSlots);
+      const scarcity = 1 + (1 - openRatio) * 0.5;
+      map.set(pos, parseFloat(scarcity.toFixed(3)));
     }
 
     return map;
@@ -464,7 +533,9 @@ export class ValuationsService {
   private computeMultipliers(player: Player): ValuationMultipliers {
     let depthChart: number;
 
-    if (player.playerType === 'pitcher') {
+    if (player.playerType === 'pitcher' && player.positions.includes('RP')) {
+      depthChart = 1.0;
+    } else if (player.playerType === 'pitcher') {
       // Pitcher rotation/bullpen tiers requested by league:
       // 1-3 essentially equal, 4 a little less, 5 even less, 6+ almost worthless
       const order = player.depthChartOrder;

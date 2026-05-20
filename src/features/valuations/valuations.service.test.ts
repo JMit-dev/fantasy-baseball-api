@@ -537,6 +537,36 @@ describe('ValuationsService.calculateValuations', () => {
     expect(result.valuations[0].multipliers.depthChart).toBe(0.85);
   });
 
+  it('does not apply depth chart adjustments to relief pitchers', async () => {
+    const [league] = await LeagueModel.insertMany([baseLeague]);
+    await PlayerModel.insertMany([
+      pitcher({
+        externalId: 'rp-setup',
+        name: 'Setup Reliever',
+        positions: ['RP'],
+        depthChartStatus: 'reserve',
+        depthChartOrder: 6,
+      }),
+      pitcher({
+        externalId: 'rp-closer',
+        name: 'Closer Reliever',
+        positions: ['RP'],
+        depthChartStatus: 'starter',
+        depthChartOrder: 1,
+      }),
+    ]);
+
+    const result = await valuationsService.calculateValuations(
+      league._id.toString(),
+      { page: 1, limit: 50 },
+    );
+
+    const setup = result.valuations.find((v) => v.name === 'Setup Reliever')!;
+    const closer = result.valuations.find((v) => v.name === 'Closer Reliever')!;
+    expect(setup.multipliers.depthChart).toBe(1.0);
+    expect(closer.multipliers.depthChart).toBe(1.0);
+  });
+
   // ── Scarcity ───────────────────────────────────────────────────────────────
 
   it('includes scarcity multiplier in every valuation', async () => {
@@ -552,7 +582,7 @@ describe('ValuationsService.calculateValuations', () => {
     expect(typeof result.valuations[0].multipliers.scarcity).toBe('number');
   });
 
-  it('catcher scarcity is at least as high as OF (scarcer position)', async () => {
+  it('keeps scarcity neutral when all position slots are open', async () => {
     const [league] = await LeagueModel.insertMany([
       {
         ...baseLeague,
@@ -594,12 +624,11 @@ describe('ValuationsService.calculateValuations', () => {
     const outfielder = result.valuations.find((v) =>
       v.positions.includes('OF'),
     )!;
-    expect(catcher.multipliers.scarcity).toBeGreaterThanOrEqual(
-      outfielder.multipliers.scarcity,
-    );
+    expect(catcher.multipliers.scarcity).toBe(1);
+    expect(outfielder.multipliers.scarcity).toBe(1);
   });
 
-  it('removes drafted players from scarcity supply', async () => {
+  it('increases scarcity as position slots fill up', async () => {
     const [leagueWithoutDrafts] = await LeagueModel.insertMany([
       {
         ...baseLeague,
@@ -622,39 +651,22 @@ describe('ValuationsService.calculateValuations', () => {
 
     const insertedPlayers = await PlayerModel.insertMany([
       hitter({
-        externalId: 'scarcity-c-1',
-        name: 'Catcher A',
-        positions: ['C'],
-      }),
-      hitter({
         externalId: 'scarcity-c-2',
         name: 'Catcher B',
         positions: ['C'],
       }),
       hitter({
         externalId: 'scarcity-of-1',
-        name: 'Outfielder A',
         positions: ['OF'],
       }),
       hitter({
         externalId: 'scarcity-of-2',
-        name: 'Outfielder B',
-        positions: ['OF'],
-      }),
-      hitter({
-        externalId: 'scarcity-of-3',
-        name: 'Outfielder C',
-        positions: ['OF'],
-      }),
-      hitter({
-        externalId: 'scarcity-of-4',
-        name: 'Outfielder D',
         positions: ['OF'],
       }),
     ]);
 
     const draftedCatcherId = insertedPlayers
-      .find((player) => player.name === 'Catcher A')!
+      .find((player) => player.name === 'Catcher B')!
       ._id.toString();
 
     const baseline = await valuationsService.calculateValuations(
@@ -679,7 +691,7 @@ describe('ValuationsService.calculateValuations', () => {
           UTIL: 0,
           BENCH: 0,
         },
-        taken_players: [[draftedCatcherId, 'team-1', 'C-0', 1]],
+        taken_players: [[draftedCatcherId, 'team-1', 'C-0', 1, '']],
       },
     ]);
 
@@ -695,12 +707,8 @@ describe('ValuationsService.calculateValuations', () => {
       (v) => v.name === 'Catcher B',
     )!;
 
-    expect(draftedPoolCatcher.multipliers.scarcity).toBeGreaterThan(
-      baselineCatcher.multipliers.scarcity,
-    );
-    expect(draftedPoolCatcher.dollarValue).toBeGreaterThan(
-      baselineCatcher.dollarValue,
-    );
+    expect(baselineCatcher.multipliers.scarcity).toBe(1);
+    expect(draftedPoolCatcher.multipliers.scarcity).toBe(1.25);
   });
 
   // ── Draftability ───────────────────────────────────────────────────────────
@@ -964,6 +972,7 @@ describe('ValuationsService.calculateValuations', () => {
     const ace = result.valuations.find((v) => v.name === 'Ace')!;
     const avg = result.valuations.find((v) => v.name === 'Average Arm')!;
     expect(ace.dollarValue).toBeGreaterThan(avg.dollarValue);
+    expect(ace.baseValue).toBeGreaterThan(avg.baseValue);
   });
 
   it('treats ERA as lower-is-better for pitchers', async () => {
@@ -1013,5 +1022,443 @@ describe('ValuationsService.calculateValuations', () => {
     const good = result.valuations.find((v) => v.name === 'Good ERA')!;
     const bad = result.valuations.find((v) => v.name === 'Bad ERA')!;
     expect(good.dollarValue).toBeGreaterThan(bad.dollarValue);
+  });
+
+  it('gives elite starters materially higher base values than mid-tier starters', async () => {
+    const [league] = await LeagueModel.insertMany([
+      {
+        ...baseLeague,
+        externalId: 'starter-replacement-test',
+        rosterSlots: {
+          ...baseLeague.rosterSlots,
+          SP: 2,
+          RP: 0,
+        },
+      },
+    ]);
+    await PlayerModel.insertMany([
+      pitcher({
+        externalId: 'sp-elite',
+        name: 'Elite Starter',
+        positions: ['SP'],
+        stats: [
+          {
+            season: '2024',
+            type: 'pitcher',
+            data: {
+              era: 2.1,
+              wins: 18,
+              saves: 0,
+              strikeouts: 250,
+              innings: 205,
+            },
+          },
+        ],
+      }),
+      pitcher({
+        externalId: 'sp-strong',
+        name: 'Strong Starter',
+        positions: ['SP'],
+        stats: [
+          {
+            season: '2024',
+            type: 'pitcher',
+            data: {
+              era: 3.0,
+              wins: 14,
+              saves: 0,
+              strikeouts: 200,
+              innings: 185,
+            },
+          },
+        ],
+      }),
+      pitcher({
+        externalId: 'sp-mid',
+        name: 'Mid Starter',
+        positions: ['SP'],
+        stats: [
+          {
+            season: '2024',
+            type: 'pitcher',
+            data: {
+              era: 4.0,
+              wins: 10,
+              saves: 0,
+              strikeouts: 150,
+              innings: 155,
+            },
+          },
+        ],
+      }),
+      pitcher({
+        externalId: 'sp-weak',
+        name: 'Weak Starter',
+        positions: ['SP'],
+        stats: [
+          {
+            season: '2024',
+            type: 'pitcher',
+            data: {
+              era: 5.0,
+              wins: 7,
+              saves: 0,
+              strikeouts: 110,
+              innings: 130,
+            },
+          },
+        ],
+      }),
+    ]);
+
+    const result = await valuationsService.calculateValuations(
+      league._id.toString(),
+      { page: 1, limit: 50, playerType: 'pitcher' },
+    );
+
+    const elite = result.valuations.find((v) => v.name === 'Elite Starter')!;
+    const mid = result.valuations.find((v) => v.name === 'Mid Starter')!;
+    expect(elite.baseValue).toBeGreaterThan(mid.baseValue);
+    expect(elite.baseValue).toBeGreaterThan(1);
+  });
+
+  it('gives elite relievers materially higher base values than weak relievers', async () => {
+    const [league] = await LeagueModel.insertMany([
+      {
+        ...baseLeague,
+        externalId: 'reliever-replacement-test',
+        rosterSlots: {
+          ...baseLeague.rosterSlots,
+          SP: 0,
+          RP: 1,
+        },
+      },
+    ]);
+    await PlayerModel.insertMany([
+      pitcher({
+        externalId: 'rp-elite',
+        name: 'Elite Reliever',
+        positions: ['RP'],
+        stats: [
+          {
+            season: '2024',
+            type: 'pitcher',
+            data: { era: 1.9, wins: 4, saves: 38, strikeouts: 90, innings: 65 },
+          },
+        ],
+      }),
+      pitcher({
+        externalId: 'rp-strong',
+        name: 'Strong Reliever',
+        positions: ['RP'],
+        stats: [
+          {
+            season: '2024',
+            type: 'pitcher',
+            data: { era: 2.5, wins: 3, saves: 28, strikeouts: 78, innings: 62 },
+          },
+        ],
+      }),
+      pitcher({
+        externalId: 'rp-weak',
+        name: 'Weak Reliever',
+        positions: ['RP'],
+        stats: [
+          {
+            season: '2024',
+            type: 'pitcher',
+            data: { era: 4.8, wins: 1, saves: 5, strikeouts: 48, innings: 52 },
+          },
+        ],
+      }),
+    ]);
+
+    const result = await valuationsService.calculateValuations(
+      league._id.toString(),
+      { page: 1, limit: 50, playerType: 'pitcher' },
+    );
+
+    const elite = result.valuations.find((v) => v.name === 'Elite Reliever')!;
+    const weak = result.valuations.find((v) => v.name === 'Weak Reliever')!;
+    expect(elite.baseValue).toBeGreaterThan(weak.baseValue);
+    expect(elite.baseValue).toBeGreaterThan(1);
+  });
+
+  it('uses the better role-adjusted outcome for dual-eligible pitchers', async () => {
+    const [league] = await LeagueModel.insertMany([
+      {
+        ...baseLeague,
+        externalId: 'dual-role-test',
+        rosterSlots: {
+          ...baseLeague.rosterSlots,
+          SP: 1,
+          RP: 1,
+        },
+      },
+    ]);
+    await PlayerModel.insertMany([
+      pitcher({
+        externalId: 'sp-anchor',
+        name: 'Starter Anchor',
+        positions: ['SP'],
+        stats: [
+          {
+            season: '2024',
+            type: 'pitcher',
+            data: {
+              era: 2.2,
+              wins: 16,
+              saves: 0,
+              strikeouts: 230,
+              innings: 198,
+            },
+          },
+        ],
+      }),
+      pitcher({
+        externalId: 'rp-anchor',
+        name: 'Reliever Anchor',
+        positions: ['RP'],
+        stats: [
+          {
+            season: '2024',
+            type: 'pitcher',
+            data: { era: 2.0, wins: 4, saves: 35, strikeouts: 88, innings: 66 },
+          },
+        ],
+      }),
+      pitcher({
+        externalId: 'swingman',
+        name: 'Swingman',
+        positions: ['SP', 'RP'],
+        stats: [
+          {
+            season: '2024',
+            type: 'pitcher',
+            data: {
+              era: 2.6,
+              wins: 9,
+              saves: 18,
+              strikeouts: 140,
+              innings: 120,
+            },
+          },
+        ],
+      }),
+    ]);
+
+    const result = await valuationsService.calculateValuations(
+      league._id.toString(),
+      { page: 1, limit: 50, playerType: 'pitcher' },
+    );
+
+    const swingman = result.valuations.find((v) => v.name === 'Swingman')!;
+    expect(swingman.baseValue).toBeGreaterThan(1);
+  });
+
+  it('raises starter replacement depth when the league has more SP slots', async () => {
+    await PlayerModel.insertMany([
+      pitcher({
+        externalId: 'sp-a',
+        name: 'Starter A',
+        positions: ['SP'],
+        stats: [
+          {
+            season: '2024',
+            type: 'pitcher',
+            data: {
+              era: 2.2,
+              wins: 16,
+              saves: 0,
+              strikeouts: 230,
+              innings: 198,
+            },
+          },
+        ],
+      }),
+      pitcher({
+        externalId: 'sp-b',
+        name: 'Starter B',
+        positions: ['SP'],
+        stats: [
+          {
+            season: '2024',
+            type: 'pitcher',
+            data: {
+              era: 2.8,
+              wins: 14,
+              saves: 0,
+              strikeouts: 205,
+              innings: 182,
+            },
+          },
+        ],
+      }),
+      pitcher({
+        externalId: 'sp-c',
+        name: 'Starter C',
+        positions: ['SP'],
+        stats: [
+          {
+            season: '2024',
+            type: 'pitcher',
+            data: {
+              era: 3.5,
+              wins: 11,
+              saves: 0,
+              strikeouts: 170,
+              innings: 165,
+            },
+          },
+        ],
+      }),
+      pitcher({
+        externalId: 'sp-d',
+        name: 'Starter D',
+        positions: ['SP'],
+        stats: [
+          {
+            season: '2024',
+            type: 'pitcher',
+            data: {
+              era: 4.2,
+              wins: 9,
+              saves: 0,
+              strikeouts: 145,
+              innings: 150,
+            },
+          },
+        ],
+      }),
+    ]);
+
+    const [shallowLeague] = await LeagueModel.insertMany([
+      {
+        ...baseLeague,
+        externalId: 'sp-shallow',
+        rosterSlots: {
+          ...baseLeague.rosterSlots,
+          SP: 1,
+          RP: 0,
+        },
+      },
+    ]);
+    const [deepLeague] = await LeagueModel.insertMany([
+      {
+        ...baseLeague,
+        externalId: 'sp-deep',
+        rosterSlots: {
+          ...baseLeague.rosterSlots,
+          SP: 2,
+          RP: 0,
+        },
+      },
+    ]);
+
+    const shallow = await valuationsService.calculateValuations(
+      shallowLeague._id.toString(),
+      { page: 1, limit: 50, playerType: 'pitcher' },
+    );
+    const deep = await valuationsService.calculateValuations(
+      deepLeague._id.toString(),
+      { page: 1, limit: 50, playerType: 'pitcher' },
+    );
+
+    const starterCShallow = shallow.valuations.find(
+      (v) => v.name === 'Starter C',
+    )!;
+    const starterCDeep = deep.valuations.find((v) => v.name === 'Starter C')!;
+    expect(starterCDeep.baseValue).toBeGreaterThan(starterCShallow.baseValue);
+  });
+
+  it('raises reliever replacement depth when the league has more RP slots', async () => {
+    await PlayerModel.insertMany([
+      pitcher({
+        externalId: 'rp-a',
+        name: 'Reliever A',
+        positions: ['RP'],
+        stats: [
+          {
+            season: '2024',
+            type: 'pitcher',
+            data: { era: 1.9, wins: 4, saves: 38, strikeouts: 90, innings: 65 },
+          },
+        ],
+      }),
+      pitcher({
+        externalId: 'rp-b',
+        name: 'Reliever B',
+        positions: ['RP'],
+        stats: [
+          {
+            season: '2024',
+            type: 'pitcher',
+            data: { era: 2.5, wins: 3, saves: 28, strikeouts: 78, innings: 62 },
+          },
+        ],
+      }),
+      pitcher({
+        externalId: 'rp-c',
+        name: 'Reliever C',
+        positions: ['RP'],
+        stats: [
+          {
+            season: '2024',
+            type: 'pitcher',
+            data: { era: 3.1, wins: 2, saves: 15, strikeouts: 64, innings: 58 },
+          },
+        ],
+      }),
+      pitcher({
+        externalId: 'rp-d',
+        name: 'Reliever D',
+        positions: ['RP'],
+        stats: [
+          {
+            season: '2024',
+            type: 'pitcher',
+            data: { era: 4.5, wins: 1, saves: 4, strikeouts: 46, innings: 52 },
+          },
+        ],
+      }),
+    ]);
+
+    const [shallowLeague] = await LeagueModel.insertMany([
+      {
+        ...baseLeague,
+        externalId: 'rp-shallow',
+        rosterSlots: {
+          ...baseLeague.rosterSlots,
+          SP: 0,
+          RP: 1,
+        },
+      },
+    ]);
+    const [deepLeague] = await LeagueModel.insertMany([
+      {
+        ...baseLeague,
+        externalId: 'rp-deep',
+        rosterSlots: {
+          ...baseLeague.rosterSlots,
+          SP: 0,
+          RP: 2,
+        },
+      },
+    ]);
+
+    const shallow = await valuationsService.calculateValuations(
+      shallowLeague._id.toString(),
+      { page: 1, limit: 50, playerType: 'pitcher' },
+    );
+    const deep = await valuationsService.calculateValuations(
+      deepLeague._id.toString(),
+      { page: 1, limit: 50, playerType: 'pitcher' },
+    );
+
+    const relieverCShallow = shallow.valuations.find(
+      (v) => v.name === 'Reliever C',
+    )!;
+    const relieverCDeep = deep.valuations.find((v) => v.name === 'Reliever C')!;
+    expect(relieverCDeep.baseValue).toBeGreaterThan(relieverCShallow.baseValue);
   });
 });
