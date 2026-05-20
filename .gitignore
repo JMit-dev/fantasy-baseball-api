@@ -17,6 +17,7 @@ build/
 .idea/
 *.swp
 *.swo
+__pycache__
 
 # OS
 .DS_Store
