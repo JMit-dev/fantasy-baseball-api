@@ -213,11 +213,31 @@ export class ValuationsService {
       (league.taken_players ?? []).map(([pid]) => String(pid)),
     );
 
+    // Build scarcity: count taken players per position using actual player data,
+    // then give remaining players a small linear boost per taken player at their position.
+    // Capped at 1.3x so there's no runaway compounding.
+    const playerPositionMap = new Map(
+      allPlayers.map((p) => [String(p._id), p.positions]),
+    );
+    const takenByPosition: Record<string, number> = {};
+    for (const [pid] of league.taken_players ?? []) {
+      for (const pos of playerPositionMap.get(String(pid)) ?? []) {
+        takenByPosition[pos] = (takenByPosition[pos] ?? 0) + 1;
+      }
+    }
+    const scarcityMap = new Map(
+      Object.entries(takenByPosition).map(([pos, count]) => [
+        pos,
+        Math.min(1 + count * 0.005, 1.3),
+      ]),
+    );
+
     const hitterValuations = this.scoreToValuations(
       hitterScored,
       hitterBudget,
       league,
       takenPlayerIds,
+      scarcityMap,
       query.teamId,
     );
 
@@ -226,6 +246,7 @@ export class ValuationsService {
       pitcherBudget,
       league,
       takenPlayerIds,
+      scarcityMap,
       query.teamId,
     );
 
@@ -358,6 +379,7 @@ export class ValuationsService {
     budget: number,
     league: League,
     takenPlayerIds: Set<string>,
+    scarcityMap: Map<string, number>,
     teamId?: string,
     overridePositiveScores?: Map<string, number>,
   ): PlayerValuation[] {
@@ -376,8 +398,12 @@ export class ValuationsService {
           ? parseFloat(((positiveScore / totalPositive) * budget).toFixed(2))
           : 1;
 
+      const scarcity = Math.max(
+        ...player.positions.map((pos) => scarcityMap.get(pos) ?? 1.0),
+      );
       const mult = this.computeMultipliers(player);
-      const adjusted = baseValue * mult.depthChart * mult.age * mult.injury;
+      const adjusted =
+        baseValue * scarcity * mult.depthChart * mult.age * mult.injury;
       const dollarValue = Math.max(1, parseFloat(adjusted.toFixed(2)));
 
       const { draftable, reason } = this.checkDraftability(
@@ -402,7 +428,7 @@ export class ValuationsService {
         dollarValue,
         draftable,
         draftableReason: reason,
-        multipliers: { ...mult, scarcity: 1.0 },
+        multipliers: { ...mult, scarcity: parseFloat(scarcity.toFixed(3)) },
       };
     });
   }
