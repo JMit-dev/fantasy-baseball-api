@@ -195,7 +195,18 @@ export class ValuationsService {
     const totalBudget = league.totalBudget ?? 260;
 
     const slots = league.rosterSlots as Record<string, number>;
-    const hitterSlotKeys = ['C', '1B', '2B', '3B', 'SS', 'OF', 'DH', 'UTIL'];
+    const hitterSlotKeys = [
+      'C',
+      '1B',
+      '2B',
+      '3B',
+      'SS',
+      'CI',
+      'MI',
+      'OF',
+      'DH',
+      'UTIL',
+    ];
     const pitcherSlotKeys = ['SP', 'RP', 'P'];
     const hitterSlots = hitterSlotKeys.reduce((s, k) => s + (slots[k] ?? 0), 0);
     const pitcherSlots = pitcherSlotKeys.reduce(
