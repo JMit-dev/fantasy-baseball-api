@@ -41,10 +41,6 @@ type ScoredPlayer = {
   rawZSum: number;
 };
 
-function slotBase(slot: string): string {
-  return slot.split('-')[0] ?? slot;
-}
-
 function normalizePlayerReference(value: string): string {
   return value
     .normalize('NFKD')
@@ -187,25 +183,8 @@ export class ValuationsService {
       league,
     );
 
-    // Score SPs and RPs against their own peer groups so that SP stats
-    // (W, K, IP) and RP stats (SV) are evaluated on separate scales.
-    // Dual-eligible (SP+RP) players go into the SP pool.
-    const spAveraged = pitcherAveraged.filter(({ player }) =>
-      player.positions.includes('SP'),
-    );
-    const rpAveraged = pitcherAveraged.filter(
-      ({ player }) => !player.positions.includes('SP'),
-    );
-
-    const spScored = this.computeZScores(
-      spAveraged,
-      league.pitchingCategories,
-      PITCHING_STAT_MAP,
-      true,
-      league,
-    );
-    const rpScored = this.computeZScores(
-      rpAveraged,
+    const pitcherScored = this.computeZScores(
+      pitcherAveraged,
       league.pitchingCategories,
       PITCHING_STAT_MAP,
       true,
@@ -214,27 +193,21 @@ export class ValuationsService {
 
     const numTeams = (league.teams ?? []).length || 10;
     const totalBudget = league.totalBudget ?? 260;
-    const hitterBudget = totalBudget * numTeams * 0.67;
-    const pitcherBudget = totalBudget * numTeams * 0.33;
 
-    // Split pitcher budget between SP and RP by explicit slot counts.
-    // When both are 0 (generic P slots), default to 67 % SP / 33 % RP.
-    const spSlotsPerTeam = league.rosterSlots.SP ?? 0;
-    const rpSlotsPerTeam = league.rosterSlots.RP ?? 0;
-    const totalExplicitPitcherSlots = spSlotsPerTeam + rpSlotsPerTeam;
-    const spBudgetFraction =
-      totalExplicitPitcherSlots > 0
-        ? spSlotsPerTeam / totalExplicitPitcherSlots
-        : 0.67;
+    const slots = league.rosterSlots as Record<string, number>;
+    const hitterSlotKeys = ['C', '1B', '2B', '3B', 'SS', 'OF', 'DH', 'UTIL'];
+    const pitcherSlotKeys = ['SP', 'RP', 'P'];
+    const hitterSlots = hitterSlotKeys.reduce((s, k) => s + (slots[k] ?? 0), 0);
+    const pitcherSlots = pitcherSlotKeys.reduce(
+      (s, k) => s + (slots[k] ?? 0),
+      0,
+    );
+    const totalPositionSlots = hitterSlots + pitcherSlots;
+    const hitterFraction =
+      totalPositionSlots > 0 ? hitterSlots / totalPositionSlots : 0.67;
 
-    // When the league uses generic P slots (SP=0, RP=0), fall back to standard
-    // defaults so that replacement level concentrates the budget among a realistic
-    // number of draftable pitchers instead of diluting it across the entire pool.
-    const effectiveSpSlots = totalExplicitPitcherSlots > 0 ? spSlotsPerTeam : 5;
-    const effectiveRpSlots = totalExplicitPitcherSlots > 0 ? rpSlotsPerTeam : 3;
-
-    const spBudget = pitcherBudget * spBudgetFraction;
-    const rpBudget = pitcherBudget * (1 - spBudgetFraction);
+    const hitterBudget = totalBudget * numTeams * hitterFraction;
+    const pitcherBudget = totalBudget * numTeams * (1 - hitterFraction);
 
     const takenPlayerIds = new Set(
       (league.taken_players ?? []).map(([pid]) => String(pid)),
@@ -248,32 +221,13 @@ export class ValuationsService {
       query.teamId,
     );
 
-    const spReplacementValues = this.buildRoleReplacementValues(
-      spScored,
-      effectiveSpSlots * numTeams,
-    );
-    const rpReplacementValues = this.buildRoleReplacementValues(
-      rpScored,
-      effectiveRpSlots * numTeams,
-    );
-
-    const spValuations = this.scoreToValuations(
-      spScored,
-      spBudget,
+    const pitcherValuations = this.scoreToValuations(
+      pitcherScored,
+      pitcherBudget,
       league,
       takenPlayerIds,
       query.teamId,
-      spReplacementValues,
     );
-    const rpValuations = this.scoreToValuations(
-      rpScored,
-      rpBudget,
-      league,
-      takenPlayerIds,
-      query.teamId,
-      rpReplacementValues,
-    );
-    const pitcherValuations = [...spValuations, ...rpValuations];
 
     let all = [...hitterValuations, ...pitcherValuations].sort(
       (a, b) => b.dollarValue - a.dollarValue,
@@ -451,28 +405,6 @@ export class ValuationsService {
         multipliers: { ...mult, scarcity: 1.0 },
       };
     });
-  }
-
-  private buildRoleReplacementValues(
-    scored: ScoredPlayer[],
-    draftableSlots: number,
-  ): Map<string, number> {
-    const sorted = [...scored].sort((a, b) => b.rawZSum - a.rawZSum);
-    const replacementIndex = Math.min(
-      Math.max(draftableSlots, 0),
-      Math.max(sorted.length - 1, 0),
-    );
-    const replacementRawZ =
-      draftableSlots > 0 && sorted.length > 0
-        ? (sorted[replacementIndex]?.rawZSum ?? 0)
-        : 0;
-
-    return new Map(
-      scored.map(({ player, rawZSum }) => [
-        String(player._id),
-        Math.max(0, rawZSum - replacementRawZ),
-      ]),
-    );
   }
 
   private computeMultipliers(player: Player): ValuationMultipliers {
