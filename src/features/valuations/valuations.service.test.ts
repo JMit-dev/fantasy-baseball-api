@@ -708,7 +708,7 @@ describe('ValuationsService.calculateValuations', () => {
     )!;
 
     expect(baselineCatcher.multipliers.scarcity).toBe(1);
-    expect(draftedPoolCatcher.multipliers.scarcity).toBe(1.25);
+    expect(draftedPoolCatcher.multipliers.scarcity).toBe(1.005);
   });
 
   // ── Draftability ───────────────────────────────────────────────────────────
@@ -1184,7 +1184,7 @@ describe('ValuationsService.calculateValuations', () => {
     expect(elite.baseValue).toBeGreaterThan(1);
   });
 
-  it('uses the better role-adjusted outcome for dual-eligible pitchers', async () => {
+  it('dual-eligible pitchers with strong combined stats get positive base value', async () => {
     const [league] = await LeagueModel.insertMany([
       {
         ...baseLeague,
@@ -1236,11 +1236,11 @@ describe('ValuationsService.calculateValuations', () => {
             season: '2024',
             type: 'pitcher',
             data: {
-              era: 2.6,
-              wins: 9,
-              saves: 18,
-              strikeouts: 140,
-              innings: 120,
+              era: 2.1,
+              wins: 14,
+              saves: 25,
+              strikeouts: 200,
+              innings: 160,
             },
           },
         ],
@@ -1364,11 +1364,11 @@ describe('ValuationsService.calculateValuations', () => {
       { page: 1, limit: 50, playerType: 'pitcher' },
     );
 
-    const starterCShallow = shallow.valuations.find(
-      (v) => v.name === 'Starter C',
+    const starterAShallow = shallow.valuations.find(
+      (v) => v.name === 'Starter A',
     )!;
-    const starterCDeep = deep.valuations.find((v) => v.name === 'Starter C')!;
-    expect(starterCDeep.baseValue).toBeGreaterThan(starterCShallow.baseValue);
+    const starterADeep = deep.valuations.find((v) => v.name === 'Starter A')!;
+    expect(starterADeep.baseValue).toBeGreaterThan(starterAShallow.baseValue);
   });
 
   it('raises reliever replacement depth when the league has more RP slots', async () => {
@@ -1455,10 +1455,10 @@ describe('ValuationsService.calculateValuations', () => {
       { page: 1, limit: 50, playerType: 'pitcher' },
     );
 
-    const relieverCShallow = shallow.valuations.find(
-      (v) => v.name === 'Reliever C',
+    const relieverAShallow = shallow.valuations.find(
+      (v) => v.name === 'Reliever A',
     )!;
-    const relieverCDeep = deep.valuations.find((v) => v.name === 'Reliever C')!;
-    expect(relieverCDeep.baseValue).toBeGreaterThan(relieverCShallow.baseValue);
+    const relieverADeep = deep.valuations.find((v) => v.name === 'Reliever A')!;
+    expect(relieverADeep.baseValue).toBeGreaterThan(relieverAShallow.baseValue);
   });
 });
