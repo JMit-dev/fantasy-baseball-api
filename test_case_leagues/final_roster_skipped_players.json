@@ -1,0 +1,405 @@
+[
+  {
+    "teamName": "Team A",
+    "slotLabel": "U",
+    "abbreviatedName": "Mike Tauchman",
+    "contract": "S2",
+    "actualValue": 1.0,
+    "reason": "Could not map workbook row cleanly to final JSON roster"
+  },
+  {
+    "teamName": "Team B",
+    "slotLabel": "P",
+    "abbreviatedName": "Edward Cabrera",
+    "contract": "S2",
+    "actualValue": 1.0,
+    "reason": "Could not map workbook row cleanly to final JSON roster"
+  },
+  {
+    "teamName": "Team C",
+    "slotLabel": "P",
+    "abbreviatedName": "Spencer Shellenbach",
+    "contract": "S2",
+    "actualValue": 1.0,
+    "reason": "Could not map workbook row cleanly to final JSON roster"
+  },
+  {
+    "teamName": "Team C",
+    "slotLabel": "P",
+    "abbreviatedName": "Corbin Burnes",
+    "contract": "S2",
+    "actualValue": 3.0,
+    "reason": "Could not map workbook row cleanly to final JSON roster"
+  },
+  {
+    "teamName": "Team D",
+    "slotLabel": "3B",
+    "abbreviatedName": "M. Muncy",
+    "contract": "S1",
+    "actualValue": 9.0,
+    "reason": "Could not map workbook row cleanly to final JSON roster"
+  },
+  {
+    "teamName": "Team D",
+    "slotLabel": "P",
+    "abbreviatedName": "JP Sears",
+    "contract": "S2",
+    "actualValue": 1.0,
+    "reason": "Could not map workbook row cleanly to final JSON roster"
+  },
+  {
+    "teamName": "Team E",
+    "slotLabel": "P",
+    "abbreviatedName": "Jeremiah Estrada",
+    "contract": "S2",
+    "actualValue": 1.0,
+    "reason": "Could not map workbook row cleanly to final JSON roster"
+  },
+  {
+    "teamName": "Team E",
+    "slotLabel": "P",
+    "abbreviatedName": "N. Cortes",
+    "contract": "LX",
+    "actualValue": 14.0,
+    "reason": "Could not map workbook row cleanly to final JSON roster"
+  },
+  {
+    "teamName": "Team G",
+    "slotLabel": "P",
+    "abbreviatedName": "Clayton Beeter",
+    "contract": "S2",
+    "actualValue": 1.0,
+    "reason": "Could not map workbook row cleanly to final JSON roster"
+  },
+  {
+    "teamName": "Team I",
+    "slotLabel": "2B",
+    "abbreviatedName": "Jake Cronenworth",
+    "contract": "S2",
+    "actualValue": 4.0,
+    "reason": "Could not map workbook row cleanly to final JSON roster"
+  },
+  {
+    "teamName": "Team I",
+    "slotLabel": "P",
+    "abbreviatedName": "Jaxon Wiggins",
+    "contract": "S2",
+    "actualValue": 1.0,
+    "reason": "Could not map workbook row cleanly to final JSON roster"
+  },
+  {
+    "teamName": "Team A",
+    "slotLabel": "C",
+    "abbreviatedName": "D. Baldwin",
+    "playerName": "Drake Baldwin",
+    "contract": "F1",
+    "actualValue": 5.0,
+    "reason": "Injured player excluded: il-10"
+  },
+  {
+    "teamName": "Team A",
+    "slotLabel": "CI",
+    "abbreviatedName": "Carlos Santana",
+    "playerName": "Carlos Santana",
+    "contract": "S2",
+    "actualValue": 5.0,
+    "reason": "Injured player excluded: il-10"
+  },
+  {
+    "teamName": "Team A",
+    "slotLabel": "OF",
+    "abbreviatedName": "Teoscar Hernandez",
+    "playerName": "Teoscar Hernandez",
+    "contract": "S2",
+    "actualValue": 18.0,
+    "reason": "No valuation returned by API"
+  },
+  {
+    "teamName": "Team A",
+    "slotLabel": "P",
+    "abbreviatedName": "C. Horton",
+    "playerName": "Cade Horton",
+    "contract": "F1",
+    "actualValue": 5.0,
+    "reason": "Injured player excluded: il-60"
+  },
+  {
+    "teamName": "Team A",
+    "slotLabel": "P",
+    "abbreviatedName": "J Musgrove",
+    "playerName": "Joe Musgrove",
+    "contract": "S2",
+    "actualValue": 5.0,
+    "reason": "Injured player excluded: il-60"
+  },
+  {
+    "teamName": "Team B",
+    "slotLabel": "C",
+    "abbreviatedName": "F. Alvarez",
+    "playerName": "Francisco Alvarez",
+    "contract": "S1",
+    "actualValue": 10.0,
+    "reason": "Injured player excluded: il-10"
+  },
+  {
+    "teamName": "Team B",
+    "slotLabel": "3B",
+    "abbreviatedName": "R. Mauricio",
+    "playerName": "Ronny Mauricio",
+    "contract": "F1",
+    "actualValue": 5.0,
+    "reason": "Injured player excluded: il-10"
+  },
+  {
+    "teamName": "Team B",
+    "slotLabel": "2B",
+    "abbreviatedName": "Luis Garcia",
+    "playerName": "Luis Garcia",
+    "contract": "S2",
+    "actualValue": 11.0,
+    "reason": "No valuation returned by API"
+  },
+  {
+    "teamName": "Team B",
+    "slotLabel": "P",
+    "abbreviatedName": "Quinn Priester",
+    "playerName": "Quinn Priester",
+    "contract": "S2",
+    "actualValue": 4.0,
+    "reason": "Injured player excluded: il-15"
+  },
+  {
+    "teamName": "Team C",
+    "slotLabel": "OF",
+    "abbreviatedName": "Jordan Beck",
+    "playerName": "Jordan Beck",
+    "contract": "S2",
+    "actualValue": 8.0,
+    "reason": "Injured player excluded: il-10"
+  },
+  {
+    "teamName": "Team C",
+    "slotLabel": "P",
+    "abbreviatedName": "M. Boyd",
+    "playerName": "Matthew Boyd",
+    "contract": "S1",
+    "actualValue": 1.0,
+    "reason": "Injured player excluded: il-15"
+  },
+  {
+    "teamName": "Team C",
+    "slotLabel": "P",
+    "abbreviatedName": "B. Woodruff",
+    "playerName": "Brandon Woodruff",
+    "contract": "S1",
+    "actualValue": 4.0,
+    "reason": "Injured player excluded: il-15"
+  },
+  {
+    "teamName": "Team C",
+    "slotLabel": "P",
+    "abbreviatedName": "Senga",
+    "playerName": "Kodai Senga",
+    "contract": "S2",
+    "actualValue": 4.0,
+    "reason": "Injured player excluded: il-15"
+  },
+  {
+    "teamName": "Team C",
+    "slotLabel": "P",
+    "abbreviatedName": "Blake Snell",
+    "playerName": "Blake Snell",
+    "contract": "S2",
+    "actualValue": 11.0,
+    "reason": "Injured player excluded: il-15"
+  },
+  {
+    "teamName": "Team C",
+    "slotLabel": "P",
+    "abbreviatedName": "Tyler Glasnow",
+    "playerName": "Tyler Glasnow",
+    "contract": "S2",
+    "actualValue": 18.0,
+    "reason": "Injured player excluded: il-15"
+  },
+  {
+    "teamName": "Team C",
+    "slotLabel": "P",
+    "abbreviatedName": "Eury Perez",
+    "playerName": "Eury Perez",
+    "contract": "S2",
+    "actualValue": 25.0,
+    "reason": "No valuation returned by API"
+  },
+  {
+    "teamName": "Team C",
+    "slotLabel": "P",
+    "abbreviatedName": "Edwin Diaz",
+    "playerName": "Edwin Diaz",
+    "contract": "S2",
+    "actualValue": 31.0,
+    "reason": "No valuation returned by API"
+  },
+  {
+    "teamName": "Team D",
+    "slotLabel": "SS",
+    "abbreviatedName": "F. Lindor",
+    "playerName": "Francisco Lindor",
+    "contract": "S1",
+    "actualValue": 36.0,
+    "reason": "Injured player excluded: il-10"
+  },
+  {
+    "teamName": "Team D",
+    "slotLabel": "OF",
+    "abbreviatedName": "Lars Nootbaar",
+    "playerName": "Lars Nootbaar",
+    "contract": "S2",
+    "actualValue": 1.0,
+    "reason": "Injured player excluded: il-60"
+  },
+  {
+    "teamName": "Team E",
+    "slotLabel": "2B",
+    "abbreviatedName": "Tommy Edman",
+    "playerName": "Tommy Edman",
+    "contract": "S2",
+    "actualValue": 1.0,
+    "reason": "Injured player excluded: il-60"
+  },
+  {
+    "teamName": "Team E",
+    "slotLabel": "OF",
+    "abbreviatedName": "Odalis Garcia",
+    "playerName": "Adolis Garcia",
+    "contract": "S2",
+    "actualValue": 11.0,
+    "reason": "No valuation returned by API"
+  },
+  {
+    "teamName": "Team E",
+    "slotLabel": "P",
+    "abbreviatedName": "Pagan",
+    "playerName": "Emilio Pagan",
+    "contract": "S2",
+    "actualValue": 18.0,
+    "reason": "No valuation returned by API"
+  },
+  {
+    "teamName": "Team F",
+    "slotLabel": "CI",
+    "abbreviatedName": "Eugenio Suarez",
+    "playerName": "Eugenio Suarez",
+    "contract": "S2",
+    "actualValue": 25.0,
+    "reason": "No valuation returned by API"
+  },
+  {
+    "teamName": "Team F",
+    "slotLabel": "OF",
+    "abbreviatedName": "Ryan O'Hearn",
+    "playerName": "Ryan O'Hearn",
+    "contract": "S2",
+    "actualValue": 9.0,
+    "reason": "Injured player excluded: il-10"
+  },
+  {
+    "teamName": "Team F",
+    "slotLabel": "U",
+    "abbreviatedName": "Ramon Laureano",
+    "playerName": "Ramon Laureano",
+    "contract": "S2",
+    "actualValue": 12.0,
+    "reason": "No valuation returned by API"
+  },
+  {
+    "teamName": "Team G",
+    "slotLabel": "C",
+    "abbreviatedName": "Joey Bart",
+    "playerName": "Joey Bart",
+    "contract": "S2",
+    "actualValue": 1.0,
+    "reason": "Injured player excluded: il-10"
+  },
+  {
+    "teamName": "Team G",
+    "slotLabel": "CI",
+    "abbreviatedName": "P. Smith (1B)",
+    "playerName": "Pavin Smith",
+    "contract": "S1",
+    "actualValue": 1.0,
+    "reason": "Injured player excluded: il-60"
+  },
+  {
+    "teamName": "Team G",
+    "slotLabel": "OF",
+    "abbreviatedName": "J Polanco",
+    "playerName": "Jorge Polanco",
+    "contract": "S2",
+    "actualValue": 20.0,
+    "reason": "Injured player excluded: il-10"
+  },
+  {
+    "teamName": "Team G",
+    "slotLabel": "P",
+    "abbreviatedName": "Clay Holmes",
+    "playerName": "Clay Holmes",
+    "contract": "S2",
+    "actualValue": 1.0,
+    "reason": "Injured player excluded: il-60"
+  },
+  {
+    "teamName": "Team H",
+    "slotLabel": "OF",
+    "abbreviatedName": "Ramos",
+    "playerName": "Heliot Ramos",
+    "contract": "S2",
+    "actualValue": 10.0,
+    "reason": "Injured player excluded: il-10"
+  },
+  {
+    "teamName": "Team H",
+    "slotLabel": "P",
+    "abbreviatedName": "Wentz",
+    "playerName": "Joey Wentz",
+    "contract": "S2",
+    "actualValue": 2.0,
+    "reason": "Injured player excluded: il-60"
+  },
+  {
+    "teamName": "Team H",
+    "slotLabel": "P",
+    "abbreviatedName": "Hunter Greene",
+    "playerName": "Hunter Greene",
+    "contract": "S2",
+    "actualValue": 4.0,
+    "reason": "Injured player excluded: il-60"
+  },
+  {
+    "teamName": "Team H",
+    "slotLabel": "P",
+    "abbreviatedName": "L. Webb",
+    "playerName": "Logan Webb",
+    "contract": "S1",
+    "actualValue": 28.0,
+    "reason": "Injured player excluded: il-15"
+  },
+  {
+    "teamName": "Team I",
+    "slotLabel": "OF",
+    "abbreviatedName": "Luis Robert",
+    "playerName": "Luis Robert Jr.",
+    "contract": "S2",
+    "actualValue": 27.0,
+    "reason": "Injured player excluded: il-10"
+  },
+  {
+    "teamName": "Team I",
+    "slotLabel": "P",
+    "abbreviatedName": "N. Pivetta",
+    "playerName": "Nick Pivetta",
+    "contract": "S1",
+    "actualValue": 13.0,
+    "reason": "Injured player excluded: il-15"
+  }
+]
