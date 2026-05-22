@@ -327,7 +327,7 @@ describe('ValuationsService.calculateValuations', () => {
     expect(result.valuations[0].baseValue).toBe(1);
   });
 
-  it('averages stats across up to 3 seasons', async () => {
+  it('averages stats across 2023-2024 seasons (0.4/0.6 weights)', async () => {
     const [league] = await LeagueModel.insertMany([baseLeague]);
     await PlayerModel.insertMany([
       hitter({
@@ -344,11 +344,6 @@ describe('ValuationsService.calculateValuations', () => {
             type: 'hitter',
             data: { ba: 0.28, hr: 30, rbi: 90, walk: 70, sb: 12 },
           },
-          {
-            season: '2025',
-            type: 'hitter',
-            data: { ba: 0.3, hr: 40, rbi: 110, walk: 90, sb: 16 },
-          },
         ],
       }),
       hitter({
@@ -356,7 +351,7 @@ describe('ValuationsService.calculateValuations', () => {
         name: 'Single Season',
         stats: [
           {
-            season: '2025',
+            season: '2024',
             type: 'hitter',
             data: { ba: 0.28, hr: 30, rbi: 90, walk: 70, sb: 12 },
           },
@@ -370,9 +365,9 @@ describe('ValuationsService.calculateValuations', () => {
     );
 
     const multi = result.valuations.find((v) => v.name === 'Multi Season')!;
-    // Weighted: 0.1×20 + 0.3×30 + 0.6×40 = 35 hr; 0.1×0.260 + 0.3×0.280 + 0.6×0.300 = 0.290 ba
-    expect(multi.averagedStats.hr).toBeCloseTo(35, 1);
-    expect(multi.averagedStats.ba).toBeCloseTo(0.29, 2);
+    // Weighted: 0.4×20 + 0.6×30 = 26 hr; 0.4×0.260 + 0.6×0.280 = 0.272 ba
+    expect(multi.averagedStats.hr).toBeCloseTo(26, 1);
+    expect(multi.averagedStats.ba).toBeCloseTo(0.272, 2);
   });
 
   // ── Age multiplier ─────────────────────────────────────────────────────────
