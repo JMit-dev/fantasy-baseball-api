@@ -176,6 +176,8 @@ async function getPlayerHistoricalStats(
           strikeouts: Number(s.stat['strikeOuts']) || undefined,
           innings:
             parseFloat(String(s.stat['inningsPitched'] ?? '')) || undefined,
+          whip:
+            parseFloat(String(s.stat['whip'] ?? '')) || undefined,
         },
       }));
     }
@@ -188,6 +190,7 @@ async function getPlayerHistoricalStats(
         rbi: Number(s.stat['rbi']) || undefined,
         walk: Number(s.stat['baseOnBalls']) || undefined,
         sb: Number(s.stat['stolenBases']) || undefined,
+        r: Number(s.stat['runs']) || undefined,
       },
     }));
   } catch {
