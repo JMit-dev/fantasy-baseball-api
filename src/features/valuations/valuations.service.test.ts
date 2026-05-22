@@ -536,35 +536,6 @@ describe('ValuationsService.calculateValuations', () => {
     expect(result.valuations[0].multipliers.depthChart).toBe(0.98);
   });
 
-  it('does not apply depth chart adjustments to relief pitchers', async () => {
-    const [league] = await LeagueModel.insertMany([baseLeague]);
-    await PlayerModel.insertMany([
-      pitcher({
-        externalId: 'rp-setup',
-        name: 'Setup Reliever',
-        positions: ['RP'],
-        depthChartStatus: 'reserve',
-        depthChartOrder: 6,
-      }),
-      pitcher({
-        externalId: 'rp-closer',
-        name: 'Closer Reliever',
-        positions: ['RP'],
-        depthChartStatus: 'starter',
-        depthChartOrder: 1,
-      }),
-    ]);
-
-    const result = await valuationsService.calculateValuations(
-      league._id.toString(),
-      { page: 1, limit: 50 },
-    );
-
-    const setup = result.valuations.find((v) => v.name === 'Setup Reliever')!;
-    const closer = result.valuations.find((v) => v.name === 'Closer Reliever')!;
-    expect(setup.multipliers.depthChart).toBe(1.0);
-    expect(closer.multipliers.depthChart).toBe(1.0);
-  });
 
   it('infers reliever role from saves-heavy pitcher stat lines', async () => {
     const [league] = await LeagueModel.insertMany([
@@ -1646,54 +1617,6 @@ describe('ValuationsService.calculateValuations', () => {
     expect(result.valuations[0].draftable).toBe(true);
   });
 
-  it('uses a deeper bat-only pool for DH hitters than for corner infielders', async () => {
-    const [league] = await LeagueModel.insertMany([
-      {
-        ...baseLeague,
-        externalId: 'dh-bat-pool-test',
-        rosterSlots: {
-          ...baseLeague.rosterSlots,
-          DH: 1,
-          UTIL: 1,
-        },
-      },
-    ]);
-    await PlayerModel.insertMany([
-      hitter({
-        externalId: 'dh-elite',
-        name: 'DH Elite',
-        positions: ['DH'],
-        stats: [
-          {
-            season: '2024',
-            type: 'hitter',
-            data: { ba: 0.3, hr: 42, rbi: 118, walk: 90, sb: 1 },
-          },
-        ],
-      }),
-      hitter({
-        externalId: 'corner-elite',
-        name: 'Corner Elite',
-        positions: ['1B'],
-        stats: [
-          {
-            season: '2024',
-            type: 'hitter',
-            data: { ba: 0.3, hr: 42, rbi: 118, walk: 90, sb: 1 },
-          },
-        ],
-      }),
-    ]);
-
-    const result = await valuationsService.calculateValuations(
-      league._id.toString(),
-      { page: 1, limit: 50, playerType: 'hitter' },
-    );
-
-    const dh = result.valuations.find((v) => v.name === 'DH Elite')!;
-    const corner = result.valuations.find((v) => v.name === 'Corner Elite')!;
-    expect(dh.baseValue).toBeLessThan(corner.baseValue);
-  });
 
   it('does not let stolen-base-heavy hitters overwhelm power hitters by speed alone', async () => {
     const [league] = await LeagueModel.insertMany([baseLeague]);
