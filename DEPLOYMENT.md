@@ -159,3 +159,8 @@ npm run build
 npm test
 npm run lint
 ```
+
+## Runtime Commands
+
+- `npm start` runs the local live-reload server.
+- `npm run start:prod` runs the compiled production server from `dist/app.js`.

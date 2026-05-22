@@ -25,7 +25,8 @@ cp .env.example .env
 # Run
 npm run dev              # Dev server (http://localhost:3001)
 npm run build            # Compile TypeScript
-npm start                # Production server
+npm start                # Live-reload local server
+npm run start:prod       # Production server
 npm test                 # Run tests
 npm run lint             # Lint code
 ```

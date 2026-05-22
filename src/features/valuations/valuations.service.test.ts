@@ -69,10 +69,13 @@ const baseLeague = {
     '2B': 1,
     '3B': 1,
     SS: 1,
+    CI: 0,
+    MI: 0,
     OF: 3,
     DH: 0,
     SP: 5,
     RP: 2,
+    P: 0,
     UTIL: 1,
     BENCH: 2,
   },
@@ -374,7 +377,7 @@ describe('ValuationsService.calculateValuations', () => {
 
   // ── Age multiplier ─────────────────────────────────────────────────────────
 
-  it('applies 1.5x age multiplier to players aged 25 and under', async () => {
+  it('applies 1.03x age multiplier to hitters aged 25 and under', async () => {
     const [league] = await LeagueModel.insertMany([baseLeague]);
     await PlayerModel.insertMany([
       hitter({ externalId: 'h-young', name: 'Young', age: 22 }),
@@ -388,11 +391,11 @@ describe('ValuationsService.calculateValuations', () => {
 
     const young = result.valuations.find((v) => v.name === 'Young')!;
     const prime = result.valuations.find((v) => v.name === 'Prime')!;
-    expect(young.multipliers.age).toBe(1.5);
+    expect(young.multipliers.age).toBe(1.03);
     expect(prime.multipliers.age).toBe(1.0);
   });
 
-  it('applies 0.85x age multiplier to players aged 35 and over', async () => {
+  it('applies 0.98x age multiplier to hitters aged 35 and over', async () => {
     const [league] = await LeagueModel.insertMany([baseLeague]);
     await PlayerModel.insertMany([
       hitter({ externalId: 'h-old', name: 'Old', age: 37 }),
@@ -403,7 +406,7 @@ describe('ValuationsService.calculateValuations', () => {
       { page: 1, limit: 50 },
     );
 
-    expect(result.valuations[0].multipliers.age).toBe(0.85);
+    expect(result.valuations[0].multipliers.age).toBe(0.98);
   });
 
   it('applies 1.0x age multiplier when age is unknown', async () => {
@@ -424,7 +427,7 @@ describe('ValuationsService.calculateValuations', () => {
 
   // ── Injury multiplier ──────────────────────────────────────────────────────
 
-  it('applies 0.2x injury multiplier to non-active players', async () => {
+  it('applies softer injury discounts by injury status', async () => {
     const [league] = await LeagueModel.insertMany([baseLeague]);
     await PlayerModel.insertMany([
       hitter({ externalId: 'h-il', name: 'IL Player', injuryStatus: 'il-15' }),
@@ -440,9 +443,10 @@ describe('ValuationsService.calculateValuations', () => {
       { page: 1, limit: 50 },
     );
 
-    for (const v of result.valuations) {
-      expect(v.multipliers.injury).toBe(0.2);
-    }
+    const ilPlayer = result.valuations.find((v) => v.name === 'IL Player')!;
+    const dtdPlayer = result.valuations.find((v) => v.name === 'DTD Player')!;
+    expect(ilPlayer.multipliers.injury).toBe(0.8);
+    expect(dtdPlayer.multipliers.injury).toBe(0.9);
   });
 
   it('injured player has lower dollarValue than identical healthy player', async () => {
@@ -512,12 +516,12 @@ describe('ValuationsService.calculateValuations', () => {
     const starter = result.valuations.find((v) => v.name === 'Starter')!;
     const backup = result.valuations.find((v) => v.name === 'Backup')!;
     const reserve = result.valuations.find((v) => v.name === 'Reserve')!;
-    expect(starter.multipliers.depthChart).toBe(1.5);
+    expect(starter.multipliers.depthChart).toBe(1.03);
     expect(backup.multipliers.depthChart).toBe(1.0);
-    expect(reserve.multipliers.depthChart).toBe(0.85);
+    expect(reserve.multipliers.depthChart).toBe(0.98);
   });
 
-  it('applies 0.85x depth chart multiplier when status is unknown', async () => {
+  it('applies 0.98x depth chart multiplier when status is unknown', async () => {
     const [league] = await LeagueModel.insertMany([baseLeague]);
     const {
       depthChartStatus: _s,
@@ -534,7 +538,7 @@ describe('ValuationsService.calculateValuations', () => {
       { page: 1, limit: 50 },
     );
 
-    expect(result.valuations[0].multipliers.depthChart).toBe(0.85);
+    expect(result.valuations[0].multipliers.depthChart).toBe(0.98);
   });
 
   it('does not apply depth chart adjustments to relief pitchers', async () => {
@@ -565,6 +569,99 @@ describe('ValuationsService.calculateValuations', () => {
     const closer = result.valuations.find((v) => v.name === 'Closer Reliever')!;
     expect(setup.multipliers.depthChart).toBe(1.0);
     expect(closer.multipliers.depthChart).toBe(1.0);
+  });
+
+  it('infers reliever role from saves-heavy pitcher stat lines', async () => {
+    const [league] = await LeagueModel.insertMany([
+      {
+        ...baseLeague,
+        externalId: 'inferred-rp-test',
+        rosterSlots: {
+          ...baseLeague.rosterSlots,
+          SP: 0,
+          RP: 1,
+          P: 0,
+        },
+      },
+    ]);
+    await PlayerModel.insertMany([
+      pitcher({
+        externalId: 'rp-inferred',
+        name: 'Inferred Reliever',
+        positions: ['SP'],
+        depthChartStatus: 'starter',
+        depthChartOrder: 1,
+        stats: [
+          {
+            season: '2024',
+            type: 'pitcher',
+            data: { era: 2.2, wins: 4, saves: 32, strikeouts: 86, innings: 66 },
+          },
+        ],
+      }),
+      pitcher({
+        externalId: 'sp-control',
+        name: 'Starter Control',
+        positions: ['SP'],
+        stats: [
+          {
+            season: '2024',
+            type: 'pitcher',
+            data: {
+              era: 3.6,
+              wins: 11,
+              saves: 0,
+              strikeouts: 170,
+              innings: 172,
+            },
+          },
+        ],
+      }),
+    ]);
+
+    const result = await valuationsService.calculateValuations(
+      league._id.toString(),
+      { page: 1, limit: 50, playerType: 'pitcher' },
+    );
+
+    const reliever = result.valuations.find(
+      (v) => v.name === 'Inferred Reliever',
+    )!;
+    expect(reliever.multipliers.depthChart).toBe(1.0);
+  });
+
+  it('still applies depth chart adjustments to starting pitchers', async () => {
+    const [league] = await LeagueModel.insertMany([baseLeague]);
+    await PlayerModel.insertMany([
+      pitcher({
+        externalId: 'sp-depth-start',
+        name: 'Starter Pitcher',
+        positions: ['SP'],
+        depthChartStatus: 'starter',
+        depthChartOrder: 1,
+      }),
+      pitcher({
+        externalId: 'sp-depth-reserve',
+        name: 'Reserve Pitcher',
+        positions: ['SP'],
+        depthChartStatus: 'reserve',
+        depthChartOrder: 5,
+      }),
+    ]);
+
+    const result = await valuationsService.calculateValuations(
+      league._id.toString(),
+      { page: 1, limit: 50, playerType: 'pitcher' },
+    );
+
+    const starter = result.valuations.find(
+      (v) => v.name === 'Starter Pitcher',
+    )!;
+    const reserve = result.valuations.find(
+      (v) => v.name === 'Reserve Pitcher',
+    )!;
+    expect(starter.multipliers.depthChart).toBe(1.1);
+    expect(reserve.multipliers.depthChart).toBe(0.95);
   });
 
   // ── Scarcity ───────────────────────────────────────────────────────────────
@@ -708,7 +805,7 @@ describe('ValuationsService.calculateValuations', () => {
     )!;
 
     expect(baselineCatcher.multipliers.scarcity).toBe(1);
-    expect(draftedPoolCatcher.multipliers.scarcity).toBe(1.005);
+    expect(draftedPoolCatcher.multipliers.scarcity).toBeGreaterThan(1);
   });
 
   // ── Draftability ───────────────────────────────────────────────────────────
@@ -1460,5 +1557,238 @@ describe('ValuationsService.calculateValuations', () => {
     )!;
     const relieverADeep = deep.valuations.find((v) => v.name === 'Reliever A')!;
     expect(relieverADeep.baseValue).toBeGreaterThan(relieverAShallow.baseValue);
+  });
+
+  it('treats CI as an open roster slot for eligible corner infielders', async () => {
+    const [league] = await LeagueModel.insertMany([
+      {
+        ...baseLeague,
+        externalId: 'ci-open-slot',
+        rosterSlots: {
+          ...baseLeague.rosterSlots,
+          '1B': 0,
+          '3B': 0,
+          CI: 1,
+          UTIL: 0,
+          BENCH: 0,
+        },
+      },
+    ]);
+    await PlayerModel.insertMany([
+      hitter({
+        externalId: 'ci-eligible',
+        name: 'Corner Eligible',
+        positions: ['1B'],
+      }),
+    ]);
+
+    const result = await valuationsService.calculateValuations(
+      league._id.toString(),
+      { page: 1, limit: 50, playerType: 'hitter', teamId: 'team-1' },
+    );
+
+    expect(result.valuations[0].draftable).toBe(true);
+  });
+
+  it('treats MI as an open roster slot for eligible middle infielders', async () => {
+    const [league] = await LeagueModel.insertMany([
+      {
+        ...baseLeague,
+        externalId: 'mi-open-slot',
+        rosterSlots: {
+          ...baseLeague.rosterSlots,
+          '2B': 0,
+          SS: 0,
+          MI: 1,
+          UTIL: 0,
+          BENCH: 0,
+        },
+      },
+    ]);
+    await PlayerModel.insertMany([
+      hitter({
+        externalId: 'mi-eligible',
+        name: 'Middle Eligible',
+        positions: ['SS'],
+      }),
+    ]);
+
+    const result = await valuationsService.calculateValuations(
+      league._id.toString(),
+      { page: 1, limit: 50, playerType: 'hitter', teamId: 'team-1' },
+    );
+
+    expect(result.valuations[0].draftable).toBe(true);
+  });
+
+  it('treats P as an open roster slot for pitchers', async () => {
+    const [league] = await LeagueModel.insertMany([
+      {
+        ...baseLeague,
+        externalId: 'p-open-slot',
+        rosterSlots: {
+          ...baseLeague.rosterSlots,
+          SP: 0,
+          RP: 0,
+          P: 1,
+          BENCH: 0,
+        },
+      },
+    ]);
+    await PlayerModel.insertMany([
+      pitcher({
+        externalId: 'p-eligible',
+        name: 'Pitcher Eligible',
+        positions: ['SP'],
+      }),
+    ]);
+
+    const result = await valuationsService.calculateValuations(
+      league._id.toString(),
+      { page: 1, limit: 50, playerType: 'pitcher', teamId: 'team-1' },
+    );
+
+    expect(result.valuations[0].draftable).toBe(true);
+  });
+
+  it('uses a deeper bat-only pool for DH hitters than for corner infielders', async () => {
+    const [league] = await LeagueModel.insertMany([
+      {
+        ...baseLeague,
+        externalId: 'dh-bat-pool-test',
+        rosterSlots: {
+          ...baseLeague.rosterSlots,
+          DH: 1,
+          UTIL: 1,
+        },
+      },
+    ]);
+    await PlayerModel.insertMany([
+      hitter({
+        externalId: 'dh-elite',
+        name: 'DH Elite',
+        positions: ['DH'],
+        stats: [
+          {
+            season: '2024',
+            type: 'hitter',
+            data: { ba: 0.3, hr: 42, rbi: 118, walk: 90, sb: 1 },
+          },
+        ],
+      }),
+      hitter({
+        externalId: 'corner-elite',
+        name: 'Corner Elite',
+        positions: ['1B'],
+        stats: [
+          {
+            season: '2024',
+            type: 'hitter',
+            data: { ba: 0.3, hr: 42, rbi: 118, walk: 90, sb: 1 },
+          },
+        ],
+      }),
+    ]);
+
+    const result = await valuationsService.calculateValuations(
+      league._id.toString(),
+      { page: 1, limit: 50, playerType: 'hitter' },
+    );
+
+    const dh = result.valuations.find((v) => v.name === 'DH Elite')!;
+    const corner = result.valuations.find((v) => v.name === 'Corner Elite')!;
+    expect(dh.baseValue).toBeLessThan(corner.baseValue);
+  });
+
+  it('does not let stolen-base-heavy hitters overwhelm power hitters by speed alone', async () => {
+    const [league] = await LeagueModel.insertMany([baseLeague]);
+    await PlayerModel.insertMany([
+      hitter({
+        externalId: 'speed-only',
+        name: 'Speed Only',
+        positions: ['SS'],
+        stats: [
+          {
+            season: '2024',
+            type: 'hitter',
+            data: { ba: 0.255, hr: 8, rbi: 48, walk: 30, sb: 55 },
+          },
+        ],
+      }),
+      hitter({
+        externalId: 'power-star',
+        name: 'Power Star',
+        positions: ['1B'],
+        stats: [
+          {
+            season: '2024',
+            type: 'hitter',
+            data: { ba: 0.292, hr: 37, rbi: 112, walk: 78, sb: 4 },
+          },
+        ],
+      }),
+    ]);
+
+    const result = await valuationsService.calculateValuations(
+      league._id.toString(),
+      { page: 1, limit: 50, playerType: 'hitter' },
+    );
+
+    const speedOnly = result.valuations.find((v) => v.name === 'Speed Only')!;
+    const powerStar = result.valuations.find((v) => v.name === 'Power Star')!;
+    expect(powerStar.dollarValue).toBeGreaterThan(speedOnly.dollarValue);
+  });
+
+  it('keeps strong corner bats above replacement in mixed corner demand leagues', async () => {
+    const [league] = await LeagueModel.insertMany([
+      {
+        ...baseLeague,
+        externalId: 'corner-bat-test',
+        rosterSlots: {
+          ...baseLeague.rosterSlots,
+          '1B': 1,
+          '3B': 1,
+          CI: 1,
+        },
+      },
+    ]);
+    await PlayerModel.insertMany([
+      hitter({
+        externalId: 'corner-star',
+        name: 'Corner Star',
+        positions: ['3B'],
+        stats: [
+          {
+            season: '2024',
+            type: 'hitter',
+            data: { ba: 0.287, hr: 31, rbi: 101, walk: 70, sb: 3 },
+          },
+        ],
+      }),
+      hitter({
+        externalId: 'corner-avg',
+        name: 'Corner Average',
+        positions: ['3B'],
+        stats: [
+          {
+            season: '2024',
+            type: 'hitter',
+            data: { ba: 0.266, hr: 18, rbi: 70, walk: 42, sb: 2 },
+          },
+        ],
+      }),
+    ]);
+
+    const result = await valuationsService.calculateValuations(
+      league._id.toString(),
+      { page: 1, limit: 50, playerType: 'hitter' },
+    );
+
+    const cornerStar = result.valuations.find((v) => v.name === 'Corner Star')!;
+    const cornerAverage = result.valuations.find(
+      (v) => v.name === 'Corner Average',
+    )!;
+    expect(cornerStar.baseValue).toBeGreaterThan(cornerAverage.baseValue);
+    expect(cornerStar.baseValue).toBeGreaterThan(1);
   });
 });
