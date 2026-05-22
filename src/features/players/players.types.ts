@@ -21,6 +21,7 @@ export const HitterStatsSchema = z.object({
   rbi: z.number().int().min(0).optional(), // Runs Batted In
   walk: z.number().int().min(0).optional(), // Walks
   sb: z.number().int().min(0).optional(), // Stolen Bases
+  r: z.number().int().min(0).optional(), // Runs Scored
 });
 
 // Pitcher stats from previous seasons
@@ -32,6 +33,7 @@ export const PitcherStatsSchema = z.object({
   saves: z.number().int().min(0).optional(), // Saves
   strikeouts: z.number().int().min(0).optional(), // Strikeouts
   innings: z.number().min(0).optional(), // Innings pitched
+  whip: z.number().min(0).optional(), // Walks + Hits per Inning Pitched
 });
 
 // Discriminated union for stats

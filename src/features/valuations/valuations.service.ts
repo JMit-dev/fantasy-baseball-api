@@ -23,6 +23,7 @@ const BATTING_STAT_MAP: Record<string, string> = {
   RBI: 'rbi',
   BB: 'walk',
   SB: 'sb',
+  R: 'r',
 };
 
 const PITCHING_STAT_MAP: Record<string, string> = {
@@ -31,6 +32,7 @@ const PITCHING_STAT_MAP: Record<string, string> = {
   SV: 'saves',
   K: 'strikeouts',
   IP: 'innings',
+  WHIP: 'whip',
 };
 
 // Pitching categories where lower is better (negate z-score)
@@ -95,12 +97,12 @@ const HITTER_CATEGORY_DAMPING: Record<string, number> = {
   SB: 0.3,
 };
 
-const HITTER_GLOBAL_FLOOR_WEIGHT = 1.2;
-const HITTER_REPLACEMENT_DEMAND_MULTIPLIER = 1.15;
+const HITTER_GLOBAL_FLOOR_WEIGHT = 0.5;
+const HITTER_REPLACEMENT_DEMAND_MULTIPLIER = 1.05;
 const HITTER_MARKET_FACTOR = 1.02;
-const PITCHER_GLOBAL_FLOOR_WEIGHT = 0.8;
-const PITCHER_REPLACEMENT_DEMAND_MULTIPLIER = 1.15;
-const MIN_RP_BUDGET_SHARE = 0.55;
+const PITCHER_GLOBAL_FLOOR_WEIGHT = 0.2;
+const PITCHER_REPLACEMENT_DEMAND_MULTIPLIER = 1.05;
+const MIN_RP_BUDGET_SHARE = 0.3;
 const PITCHER_ROLE_BASE_FACTORS: Record<'SP' | 'RP', number> = {
   SP: 100.35,
   RP: 300.0,
@@ -385,11 +387,10 @@ export class ValuationsService {
     };
   }
 
-  private static readonly TARGET_SEASONS = ['2023', '2024', '2025'] as const;
+  private static readonly TARGET_SEASONS = ['2023', '2024'] as const;
   private static readonly SEASON_WEIGHTS: Record<string, number> = {
-    '2023': 0.1,
-    '2024': 0.3,
-    '2025': 0.6,
+    '2023': 0.4,
+    '2024': 0.6,
   };
 
   private averageStats(player: Player): Record<string, number> {
@@ -986,7 +987,7 @@ export class ValuationsService {
             rawZSum,
             positiveScore,
             pitcherRole,
-            roleBudget: Number(roleBudget.toFixed ? roleBudget : roleBudget),
+            roleBudget: Number(roleBudget),
             roleTotalPositive,
             baseValue,
             scarcity,
