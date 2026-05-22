@@ -986,7 +986,7 @@ export class ValuationsService {
             rawZSum,
             positiveScore,
             pitcherRole,
-            roleBudget: Number(roleBudget.toFixed ? roleBudget : roleBudget),
+            roleBudget: Number(roleBudget.toFixed(2)),
             roleTotalPositive,
             baseValue,
             scarcity,
